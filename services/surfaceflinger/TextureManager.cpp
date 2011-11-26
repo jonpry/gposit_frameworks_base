@@ -75,6 +75,8 @@ status_t TextureManager::initTexture(Texture* texture)
 
 status_t TextureManager::initTexture(Image* pImage, int32_t format)
 {
+    LOGE("init texture");
+
     if (pImage->name != -1UL)
         return INVALID_OPERATION;
 
@@ -83,6 +85,8 @@ status_t TextureManager::initTexture(Image* pImage, int32_t format)
     pImage->name = textureName;
     pImage->width = 0;
     pImage->height = 0;
+
+    LOGE("TextureName after init %d", textureName);
 
     GLenum target = GL_TEXTURE_2D;
 #if defined(GL_OES_EGL_image_external)
@@ -135,7 +139,12 @@ status_t TextureManager::initEglImage(Image* pImage,
         EGLDisplay dpy, const sp<GraphicBuffer>& buffer)
 {
     status_t err = NO_ERROR;
+
+    LOGE("initEglImage");
+
     if (!pImage->dirty) return err;
+
+    LOGE("initEglImage dirty");
 
     // free the previous image
     if (pImage->image != NULL) {

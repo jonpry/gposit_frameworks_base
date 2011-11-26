@@ -342,8 +342,8 @@ void DisplayHardware::flip(const Region& dirty) const
     checkEGLErrors("eglSwapBuffers");
 
     // for debugging
-    glClearColor(1,0,0,0);
-    glClear(GL_COLOR_BUFFER_BIT);
+//   glClearColor(1,0,0,0);
+//    glClear(GL_COLOR_BUFFER_BIT);
 }
 
 status_t DisplayHardware::postBypassBuffer(const native_handle_t* handle) const

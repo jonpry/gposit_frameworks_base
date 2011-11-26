@@ -346,8 +346,8 @@ void LayerBase::clearWithOpenGL(const Region& clip, GLclampf red,
     glDisable(GL_BLEND);
     glDisable(GL_DITHER);
   
-    glClearColor(.2f,.3f,.4f,.5f);
-    glClear(GL_COLOR_BUFFER_BIT);
+ //   glClearColor(.2f,.4f,.3f,.5f);
+ //   glClear(GL_COLOR_BUFFER_BIT);
 
     Region::const_iterator it = clip.begin();
     Region::const_iterator const end = clip.end();
@@ -539,14 +539,20 @@ void LayerBase::drawWithOpenGL(const Region& clip, const Texture& texture) const
     texCoords[vRT].u = cr;
     texCoords[vRT].v = ct;
 
+    GLfloat colors[] = {1,0,0,.5f, 1,1,0,.5f, 1,0,1,0.5f, 1,1,1,0.5f};
+
     if (needsDithering()) {
         glEnable(GL_DITHER);
     } else {
         glDisable(GL_DITHER);
     }
 
+//   glDisable(GL_TEXTURE_2D);
+//    glShadeModel(GL_SMOOTH); 
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+//    glEnableClientState(GL_COLOR_ARRAY);
     glVertexPointer(2, GL_FLOAT, 0, mVertices);
+//    glColorPointer(4, GL_FLOAT, 0, colors);
     glTexCoordPointer(2, GL_FLOAT, 0, texCoords);
 
     Region::const_iterator it = clip.begin();
@@ -557,6 +563,7 @@ void LayerBase::drawWithOpenGL(const Region& clip, const Texture& texture) const
         glScissor(r.left, sy, r.width(), r.height());
         glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
     }
+//    glDisableClientState(GL_COLOR_ARRAY);
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 }
 

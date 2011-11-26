@@ -196,16 +196,10 @@ void Layer::reloadTexture(const Region& dirty)
         return;
     }
 
-    if (mGLExtensions.haveDirectTexture()) {
-        EGLDisplay dpy(mFlinger->graphicPlane(0).getEGLDisplay());
-        if (mBufferManager.initEglImage(dpy, buffer) != NO_ERROR) {
-            // not sure what we can do here...
-            goto slowpath;
-        }
-    } else {
-slowpath:
-        GGLSurface t;
-        if (buffer->usage & GRALLOC_USAGE_SW_READ_MASK) {
+     EGLDisplay dpy(mFlinger->graphicPlane(0).getEGLDisplay());
+     mBufferManager.initEglImage(dpy, buffer);
+     GGLSurface t;
+     if (buffer->usage & GRALLOC_USAGE_SW_READ_MASK) {
             status_t res = buffer->lock(&t, GRALLOC_USAGE_SW_READ_OFTEN);
             LOGE_IF(res, "error %d (%s) locking buffer %p",
                     res, strerror(res), buffer.get());
@@ -213,9 +207,8 @@ slowpath:
                 mBufferManager.loadTexture(dirty, t);
                 buffer->unlock();
             }
-        } else {
-            // we can't do anything
-        }
+    }else{
+	LOGE("Unable to load texture");
     }
 }
 
@@ -875,32 +868,17 @@ status_t Layer::BufferManager::destroy(EGLDisplay dpy)
 status_t Layer::BufferManager::initEglImage(EGLDisplay dpy,
         const sp<GraphicBuffer>& buffer)
 {
+
+    LOGE("BufferManager: initEglImage");
     status_t err = NO_INIT;
     ssize_t index = mActiveBuffer;
     if (index >= 0) {
         if (!mFailover) {
-            {
-               // Without that lock, there is a chance of race condition
-               // where while composing a specific index, requestBuf
-               // with the same index can be executed and touch the same data
-               // that is being used in initEglImage.
-               // (e.g. dirty flag in texture)
-               Mutex::Autolock _l(mLock);
-               Image& texture(mBufferData[index].texture);
-               err = mTextureManager.initEglImage(&texture, dpy, buffer);
-            }
-            // if EGLImage fails, we switch to regular texture mode, and we
-            // free all resources associated with using EGLImages.
-            if (err == NO_ERROR) {
-                mFailover = false;
-                destroyTexture(&mFailoverTexture, dpy);
-            } else {
-                mFailover = true;
-                const size_t num = mNumBuffers;
-                for (size_t i=0 ; i<num ; i++) {
-                    destroyTexture(&mBufferData[i].texture, dpy);
-                }
-            }
+              mFailover = true;
+              const size_t num = mNumBuffers;
+              for (size_t i=0 ; i<num ; i++) {
+                  destroyTexture(&mBufferData[i].texture, dpy);
+              }
         } else {
             // we failed once, don't try again
             err = BAD_VALUE;
