@@ -229,6 +229,7 @@ void Layer::drawForSreenShot() const
 
 void Layer::onDraw(const Region& clip) const
 {
+    LOGW("Layer Draw");
     Texture tex(mBufferManager.getActiveTexture());
     if (tex.name == -1LU) {
         // the texture has not been created yet, this Layer has
@@ -250,9 +251,9 @@ void Layer::onDraw(const Region& clip) const
             under.orSelf(layer->visibleRegionScreen);
         }
         // if not everything below us is covered, we plug the holes!
-        Region holes(clip.subtract(under));
+        Region holes(clip);//.subtract(under));
         if (!holes.isEmpty()) {
-            clearWithOpenGL(holes, 0, 0, 0, 1);
+            clearWithOpenGL(holes, 0.1, 0.2, 0.3, 1);
         }
         return;
     }

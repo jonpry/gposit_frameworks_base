@@ -107,9 +107,9 @@ void LayerDim::onDraw(const Region& clip) const
         glColor4f(0, 0, 0, alpha);
 
 #if defined(GL_OES_EGL_image_external)
-        if (GLExtensions::getInstance().haveTextureExternal()) {
+/*        if (GLExtensions::getInstance().haveTextureExternal()) {
             glDisable(GL_TEXTURE_EXTERNAL_OES);
-        }
+        } */
 #endif
 #ifdef AVOID_DRAW_TEXTURE
         if (!sUseTexture) {

@@ -94,7 +94,11 @@ int DisplayHardware::getWidth() const           { return mWidth; }
 int DisplayHardware::getHeight() const          { return mHeight; }
 PixelFormat DisplayHardware::getFormat() const  { return mFormat; }
 uint32_t DisplayHardware::getMaxTextureSize() const { return mMaxTextureSize; }
-uint32_t DisplayHardware::getMaxViewportDims() const { return mMaxViewportDims; }
+uint32_t DisplayHardware::getMaxViewportDims() const { 
+	if(mMaxViewportDims[0] > mMaxViewportDims[1])
+		return mMaxViewportDims[0];
+	return mMaxViewportDims[1]; 
+}
 
 void DisplayHardware::init(uint32_t dpy)
 {
@@ -235,7 +239,7 @@ void DisplayHardware::init(uint32_t dpy)
             eglQueryString(display, EGL_EXTENSIONS));
 
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &mMaxTextureSize);
-    glGetIntegerv(GL_MAX_VIEWPORT_DIMS, &mMaxViewportDims);
+    glGetIntegerv(GL_MAX_VIEWPORT_DIMS, mMaxViewportDims);
 
 
 #ifdef EGL_ANDROID_swap_rectangle
@@ -267,7 +271,7 @@ void DisplayHardware::init(uint32_t dpy)
     LOGI("version   : %s", extensions.getVersion());
     LOGI("extensions: %s", extensions.getExtension());
     LOGI("GL_MAX_TEXTURE_SIZE = %d", mMaxTextureSize);
-    LOGI("GL_MAX_VIEWPORT_DIMS = %d", mMaxViewportDims);
+    LOGI("GL_MAX_VIEWPORT_DIMS = %d x %d", mMaxViewportDims[0], mMaxViewportDims[1]);
     LOGI("flags = %08x", mFlags);
 
     // Unbind the context from this thread
@@ -318,12 +322,12 @@ void DisplayHardware::flip(const Region& dirty) const
     EGLSurface surface = mSurface;
 
 #ifdef EGL_ANDROID_swap_rectangle    
-    if (mFlags & SWAP_RECTANGLE) {
+ /*   if (mFlags & SWAP_RECTANGLE) {
         const Region newDirty(dirty.intersect(bounds()));
         const Rect b(newDirty.getBounds());
         eglSetSwapRectangleANDROID(dpy, surface,
                 b.left, b.top, b.width(), b.height());
-    } 
+    }  */
 #endif
     
     if (mFlags & PARTIAL_UPDATES) {
@@ -338,8 +342,8 @@ void DisplayHardware::flip(const Region& dirty) const
     checkEGLErrors("eglSwapBuffers");
 
     // for debugging
-    //glClearColor(1,0,0,0);
-    //glClear(GL_COLOR_BUFFER_BIT);
+    glClearColor(1,0,0,0);
+    glClear(GL_COLOR_BUFFER_BIT);
 }
 
 status_t DisplayHardware::postBypassBuffer(const native_handle_t* handle) const

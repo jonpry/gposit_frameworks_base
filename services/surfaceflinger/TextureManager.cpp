@@ -44,10 +44,10 @@ TextureManager::TextureManager()
 
 GLenum TextureManager::getTextureTarget(const Image* image) {
 #if defined(GL_OES_EGL_image_external)
-    switch (image->target) {
+/*    switch (image->target) {
         case Texture::TEXTURE_EXTERNAL:
             return GL_TEXTURE_EXTERNAL_OES;
-    }
+    }*/
 #endif
     return GL_TEXTURE_2D;
 }
@@ -86,12 +86,12 @@ status_t TextureManager::initTexture(Image* pImage, int32_t format)
 
     GLenum target = GL_TEXTURE_2D;
 #if defined(GL_OES_EGL_image_external)
-    if (GLExtensions::getInstance().haveTextureExternal()) {
+/*    if (GLExtensions::getInstance().haveTextureExternal()) {
         if (format && isYuvFormat(format)) {
             target = GL_TEXTURE_EXTERNAL_OES;
             pImage->target = Texture::TEXTURE_EXTERNAL;
         }
-    }
+    }*/
 #endif
 
     glBindTexture(target, textureName);
@@ -138,30 +138,26 @@ status_t TextureManager::initEglImage(Image* pImage,
     if (!pImage->dirty) return err;
 
     // free the previous image
-    if (pImage->image != EGL_NO_IMAGE_KHR) {
-        eglDestroyImageKHR(dpy, pImage->image);
-        pImage->image = EGL_NO_IMAGE_KHR;
+    if (pImage->image != NULL) {
+	//TODO: destory the tex somhow. glDeleteTexture probably does it
+//        eglDestroyImageKHR(dpy, pImage->image);
+        pImage->image = NULL;
     }
 
     // construct an EGL_NATIVE_BUFFER_ANDROID
     android_native_buffer_t* clientBuf = buffer->getNativeBuffer();
 
-    // create the new EGLImageKHR
-    const EGLint attrs[] = {
-            EGL_IMAGE_PRESERVED_KHR,    EGL_TRUE,
-            EGL_NONE,                   EGL_NONE
-    };
-    pImage->image = eglCreateImageKHR(
-            dpy, EGL_NO_CONTEXT, EGL_NATIVE_BUFFER_ANDROID,
-            (EGLClientBuffer)clientBuf, attrs);
+    pImage->image = (void*)clientBuf;
+	//TODO: do glTexImage2d
 
-    if (pImage->image != EGL_NO_IMAGE_KHR) {
+    if (pImage->image != NULL) {
+	//TODO: go glTexSubImage
         if (pImage->name == -1UL) {
             initTexture(pImage, buffer->format);
         }
         const GLenum target = getTextureTarget(pImage);
         glBindTexture(target, pImage->name);
-        glEGLImageTargetTexture2DOES(target, (GLeglImageOES)pImage->image);
+   //     glEGLImageTargetTexture2DOES(target, (GLeglImageOES)pImage->image); */
         GLint error = glGetError();
         if (error != GL_NO_ERROR) {
             LOGE("glEGLImageTargetTexture2DOES(%p) failed err=0x%04x",
@@ -212,7 +208,7 @@ status_t TextureManager::loadTexture(Texture* texture,
 
     int unpack = __builtin_ctz(t.stride * bytesPerPixel(t.format));
     unpack = 1 << ((unpack > 3) ? 3 : unpack);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, unpack);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, unpack); 
 
     /*
      * round to POT if needed
@@ -296,7 +292,7 @@ status_t TextureManager::loadTexture(Texture* texture,
                     GL_LUMINANCE, GL_UNSIGNED_BYTE,
                     t.data + bounds.top*t.stride);
         }
-    }
+    } 
     return NO_ERROR;
 }
 
@@ -307,13 +303,13 @@ void TextureManager::activateTexture(const Texture& texture, bool filter)
         glBindTexture(GL_TEXTURE_2D, texture.name);
         glEnable(GL_TEXTURE_2D);
 #if defined(GL_OES_EGL_image_external)
-        if (GLExtensions::getInstance().haveTextureExternal()) {
+/*        if (GLExtensions::getInstance().haveTextureExternal()) {
             glDisable(GL_TEXTURE_EXTERNAL_OES);
         }
     } else {
         glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture.name);
         glEnable(GL_TEXTURE_EXTERNAL_OES);
-        glDisable(GL_TEXTURE_2D);
+        glDisable(GL_TEXTURE_2D); */
 #endif
     }
 
@@ -330,9 +326,9 @@ void TextureManager::deactivateTextures()
 {
     glDisable(GL_TEXTURE_2D);
 #if defined(GL_OES_EGL_image_external)
-    if (GLExtensions::getInstance().haveTextureExternal()) {
+/*   if (GLExtensions::getInstance().haveTextureExternal()) {
         glDisable(GL_TEXTURE_EXTERNAL_OES);
-    }
+    }*/
 #endif
 }
 

@@ -872,7 +872,7 @@ void SurfaceFlinger::handleRepaint()
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    uint32_t flags = hw.getFlags();
+ /*   uint32_t flags = hw.getFlags();
     if ((flags & DisplayHardware::SWAP_RECTANGLE) || 
         (flags & DisplayHardware::BUFFER_PRESERVED)) 
     {
@@ -894,14 +894,14 @@ void SurfaceFlinger::handleRepaint()
             // We need to redraw the rectangle that will be updated
             // (pushed to the framebuffer).
             // This is needed because PARTIAL_UPDATES only takes one
-            // rectangle instead of a region (see DisplayHardware::flip())
+            // rectangle instead of a region (see DisplayHardware::flip()) */
             mDirtyRegion.set(mInvalidRegion.bounds());
-        } else {
+/*       } else {
             // we need to redraw everything (the whole screen)
             mDirtyRegion.set(hw.bounds());
             mInvalidRegion = mDirtyRegion;
         }
-    }
+    }*/
 
     // compose all surfaces
     composeSurfaces(mDirtyRegion);
@@ -1012,9 +1012,9 @@ void SurfaceFlinger::drawWormhole() const
         glTexCoordPointer(2, GL_SHORT, 0, tcoords);
         glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 #if defined(GL_OES_EGL_image_external)
-        if (GLExtensions::getInstance().haveTextureExternal()) {
+ /*       if (GLExtensions::getInstance().haveTextureExternal()) {
             glDisable(GL_TEXTURE_EXTERNAL_OES);
-        }
+        }*/
 #endif
         glEnable(GL_TEXTURE_2D);
         glBindTexture(GL_TEXTURE_2D, mWormholeTexName);
@@ -1652,9 +1652,9 @@ status_t SurfaceFlinger::onTransact(
 status_t SurfaceFlinger::renderScreenToTextureLocked(DisplayID dpy,
         GLuint* textureName, GLfloat* uOut, GLfloat* vOut)
 {
-    if (!GLExtensions::getInstance().haveFramebufferObject())
+  //  if (!GLExtensions::getInstance().haveFramebufferObject())
         return INVALID_OPERATION;
-
+/*
     // get screen geometry
     const DisplayHardware& hw(graphicPlane(dpy).displayHardware());
     const uint32_t hw_w = hw.getWidth();
@@ -1703,7 +1703,7 @@ status_t SurfaceFlinger::renderScreenToTextureLocked(DisplayID dpy,
     *textureName = tname;
     *uOut = u;
     *vOut = v;
-    return NO_ERROR;
+    return NO_ERROR; */
 }
 
 // ---------------------------------------------------------------------------
@@ -1717,12 +1717,12 @@ status_t SurfaceFlinger::electronBeamOffAnimationImplLocked()
     status_t result = PERMISSION_DENIED;
 
 #ifndef HAS_LIMITED_EGL
-    if (!GLExtensions::getInstance().haveFramebufferObject())
+ //   if (!GLExtensions::getInstance().haveFramebufferObject())
         return INVALID_OPERATION;
 #endif
 
     // get screen geometry
-    const DisplayHardware& hw(graphicPlane(0).displayHardware());
+ /*   const DisplayHardware& hw(graphicPlane(0).displayHardware());
     const uint32_t hw_w = hw.getWidth();
     const uint32_t hw_h = hw.getHeight();
     const Region screenBounds(hw.bounds());
@@ -1853,20 +1853,20 @@ status_t SurfaceFlinger::electronBeamOffAnimationImplLocked()
     glColorMask(1,1,1,1);
     glEnable(GL_SCISSOR_TEST);
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-    glDeleteTextures(1, &tname);
-    return NO_ERROR;
+    glDeleteTextures(1, &tname); 
+    return NO_ERROR; */
 }
 
 status_t SurfaceFlinger::electronBeamOnAnimationImplLocked()
 {
     status_t result = PERMISSION_DENIED;
 
-#ifndef HAS_LIMITED_EGL
-    if (!GLExtensions::getInstance().haveFramebufferObject())
+//#ifndef HAS_LIMITED_EGL
+//    if (!GLExtensions::getInstance().haveFramebufferObject())
         return INVALID_OPERATION;
-#endif
+//#endif
 
-    // get screen geometry
+/*    // get screen geometry
     const DisplayHardware& hw(graphicPlane(0).displayHardware());
     const uint32_t hw_w = hw.getWidth();
     const uint32_t hw_h = hw.getHeight();
@@ -1998,9 +1998,9 @@ status_t SurfaceFlinger::electronBeamOnAnimationImplLocked()
     glColorMask(1,1,1,1);
     glEnable(GL_SCISSOR_TEST);
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-    glDeleteTextures(1, &tname);
+    glDeleteTextures(1, &tname); */
 
-    return NO_ERROR;
+    return NO_ERROR; 
 }
 
 // ---------------------------------------------------------------------------
@@ -2122,10 +2122,10 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
     if (UNLIKELY(uint32_t(dpy) >= DISPLAY_COUNT))
         return BAD_VALUE;
 
-    if (!GLExtensions::getInstance().haveFramebufferObject())
+//    if (!GLExtensions::getInstance().haveFramebufferObject())
         return INVALID_OPERATION;
 
-    // get screen geometry
+ /*   // get screen geometry
     const DisplayHardware& hw(graphicPlane(dpy).displayHardware());
     const uint32_t hw_w = hw.getWidth();
     const uint32_t hw_h = hw.getHeight();
@@ -2218,7 +2218,7 @@ status_t SurfaceFlinger::captureScreenImplLocked(DisplayID dpy,
 
     hw.compositionComplete();
 
-    return result;
+    return result;*/
 }
 
 

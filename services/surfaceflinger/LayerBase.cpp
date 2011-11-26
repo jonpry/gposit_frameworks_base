@@ -341,8 +341,13 @@ void LayerBase::clearWithOpenGL(const Region& clip, GLclampf red,
 
     TextureManager::deactivateTextures();
 
+    LOGW("clearWithOpengl");
+
     glDisable(GL_BLEND);
     glDisable(GL_DITHER);
+  
+    glClearColor(.2f,.3f,.4f,.5f);
+    glClear(GL_COLOR_BUFFER_BIT);
 
     Region::const_iterator it = clip.begin();
     Region::const_iterator const end = clip.end();
@@ -374,6 +379,8 @@ void LayerBase::drawWithOpenGL(const Region& clip, const Texture& texture) const
     const DisplayHardware& hw(graphicPlane(0).displayHardware());
     const uint32_t fbHeight = hw.getHeight();
     const State& s(drawingState());
+
+	LOGW("DrawWithOpenGL");
     
     // bind our texture
     TextureManager::activateTexture(texture, needsFiltering());
