@@ -336,6 +336,8 @@ void DisplayHardware::flip(const Region& dirty) const
     
     mPageFlipCount++;
     eglSwapBuffers(dpy, surface);
+//    framebuffer_device_t *fbDev = (framebuffer_device_t *)mNativeWindow->getDevice();
+//    fbDev->post(fbDev, handle);
     // glFinish here prevents the impedence mismatch between software-rendered
     // surfaceflinger surfaces in another thread. Shows no perf loss with vsync on.
     glFinish();
@@ -349,7 +351,7 @@ void DisplayHardware::flip(const Region& dirty) const
 status_t DisplayHardware::postBypassBuffer(const native_handle_t* handle) const
 {
    framebuffer_device_t *fbDev = (framebuffer_device_t *)mNativeWindow->getDevice();
-   return fbDev->post(fbDev, handle);
+   return 0;//fbDev->post(fbDev, handle);
 }
 
 uint32_t DisplayHardware::getFlags() const

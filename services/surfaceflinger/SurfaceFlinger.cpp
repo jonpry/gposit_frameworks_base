@@ -1291,15 +1291,15 @@ sp<Layer> SurfaceFlinger::createNormalSurface(
     switch (format) { // TODO: take h/w into account
     case PIXEL_FORMAT_TRANSPARENT:
     case PIXEL_FORMAT_TRANSLUCENT:
-        format = PIXEL_FORMAT_RGBA_8888;
+        format = PIXEL_FORMAT_RGBA_4444;
         break;
     case PIXEL_FORMAT_OPAQUE:
 
-#ifdef USE_16BPPSURFACE_FOR_OPAQUE
+//#ifdef USE_16BPPSURFACE_FOR_OPAQUE
         format = PIXEL_FORMAT_RGB_565;
-#else
-         format = PIXEL_FORMAT_RGBX_8888;
-#endif
+//#else
+//         format = PIXEL_FORMAT_RGBX_8888;
+//#endif
         break;
     }
 

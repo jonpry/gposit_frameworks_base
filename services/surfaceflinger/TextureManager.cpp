@@ -279,17 +279,20 @@ status_t TextureManager::loadTexture(Texture* texture,
     }
     if (!data) {
         if (t.format == HAL_PIXEL_FORMAT_RGB_565) {
+	    LOGW("565 texture update");
             glTexSubImage2D(GL_TEXTURE_2D, 0,
                     0, bounds.top, t.width, bounds.height(),
                     GL_RGB, GL_UNSIGNED_SHORT_5_6_5,
                     t.data + bounds.top*t.stride*2);
         } else if (t.format == HAL_PIXEL_FORMAT_RGBA_4444) {
+		LOGW("4444 texture update");
             glTexSubImage2D(GL_TEXTURE_2D, 0,
                     0, bounds.top, t.width, bounds.height(),
                     GL_RGBA, GL_UNSIGNED_SHORT_4_4_4_4,
                     t.data + bounds.top*t.stride*2);
         } else if (t.format == HAL_PIXEL_FORMAT_RGBA_8888 ||
                    t.format == HAL_PIXEL_FORMAT_RGBX_8888) {
+		LOGW("8888 texture update");
             glTexSubImage2D(GL_TEXTURE_2D, 0,
                     0, bounds.top, t.width, bounds.height(),
                     GL_RGBA, GL_UNSIGNED_BYTE,
