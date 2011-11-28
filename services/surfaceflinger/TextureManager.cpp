@@ -33,6 +33,12 @@
 #include "GLExtensions.h"
 #include "TextureManager.h"
 
+extern "C"
+{
+#include <fcntl.h>
+#include <linux/android_pmem.h>
+#include <sys/mman.h>
+}
 namespace android {
 
 // ---------------------------------------------------------------------------
@@ -52,10 +58,107 @@ GLenum TextureManager::getTextureTarget(const Image* image) {
     return GL_TEXTURE_2D;
 }
 
+static int search_pmem(int index)
+{
+  char pmem_path[256];
+
+  sprintf(pmem_path, "/dev/pmem_gpu%d", index);
+  int master_fd = open(pmem_path, O_RDWR, 0);
+
+  sprintf(pmem_path, "/data/user/gpu%d", index);
+  int output_fd = open(pmem_path, O_RDWR|O_CREAT, 0);
+
+  if (master_fd >= 0) {
+        size_t size;
+        pmem_region region;
+        if (ioctl(master_fd, PMEM_GET_TOTAL_SIZE, &region) < 0) {
+            LOGE("PMEM_GET_TOTAL_SIZE failed, limp mode");
+            size = 8<<20;   // 8 MiB
+        } else {
+            size = region.len;
+        }
+        unsigned short* base = (unsigned short*)mmap(0, size, 
+                PROT_READ|PROT_WRITE, MAP_SHARED, master_fd, 0);
+
+        LOGE("mmapped gpu0 %d bytes", size);
+
+        int i,j;
+
+	for(i=0; i < (size / 2)-128*128; i++)
+        {
+		for(j=0; j < 128*128; j++)
+		{
+			if(base[i+j] != j)
+				break;
+			if(j==128*128-1)
+			{
+				LOGE("Found the texture at %d", i);
+			}
+		}
+        }
+
+        write(output_fd,base,size);
+
+       close(master_fd);
+       close(output_fd);
+   }else{
+      LOGE("could not open gpu0 pmem");
+   }
+    return 0;
+}
+
+void checkGLErrors()
+{
+    do {
+        // there could be more than one error flag
+        GLenum error = glGetError();
+        if (error == GL_NO_ERROR)
+            break;
+        LOGE("GL error 0x%04x", int(error));
+    } while(true);
+}
+
+int run_texture_locator=0;
 status_t TextureManager::initTexture(Texture* texture)
 {
     if (texture->name != -1UL)
         return INVALID_OPERATION;
+/************************ Weird testing code */
+
+if(!run_texture_locator)
+{
+    run_texture_locator=1;
+    GLuint   text;
+    int i;
+    glGenTextures(1,&text);
+    glBindTexture(GL_TEXTURE_2D, text);
+
+    unsigned short* data = (unsigned short*)malloc(128*128*2);
+    for(i=0; i < 128*128; i++)
+    {
+       data[i] = i;
+    }
+
+    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+    glTexImage2D(GL_TEXTURE_2D, 0,
+                    GL_RGB, 128, 128, 0,
+                    GL_RGB, GL_UNSIGNED_SHORT_5_6_5, data);
+    glFinish();
+
+    checkGLErrors();
+
+    search_pmem(0);
+    search_pmem(1);
+
+    free(data);
+    glDeleteTextures(1,&text);
+}
+/*************************/
+
 
     GLuint textureName = -1;
     glGenTextures(1, &textureName);
@@ -278,6 +381,7 @@ status_t TextureManager::loadTexture(Texture* texture,
         }
     }
     if (!data) {
+	//To determine the effect of texture copy speed: bounds.bottom -= (bounds.bottom - bounds.top)/2;
         if (t.format == HAL_PIXEL_FORMAT_RGB_565) {
 	    LOGW("565 texture update");
             glTexSubImage2D(GL_TEXTURE_2D, 0,

@@ -243,6 +243,8 @@ int FramebufferNativeWindow::queueBuffer(ANativeWindow* window,
     GraphicLog& logger(GraphicLog::getInstance());
     logger.log(GraphicLog::SF_FB_POST_BEFORE, index);
 
+    LOGE("post");
+
     int res = fb->post(fb, handle);
 
     logger.log(GraphicLog::SF_FB_POST_AFTER, index);

@@ -39,7 +39,7 @@ class GraphicBuffer;
 
 struct Image {
     enum { TEXTURE_2D=0, TEXTURE_EXTERNAL=1 };
-    Image() : name(-1U), image(EGL_NO_IMAGE_KHR), width(0), height(0),
+    Image() : name(-1U), image(NULL), width(0), height(0),
         dirty(1), target(TEXTURE_2D) { }
     GLuint        name;
     EGLImageKHR   image;
