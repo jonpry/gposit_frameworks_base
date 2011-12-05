@@ -80,29 +80,41 @@ static int search_pmem(int index)
         unsigned short* base = (unsigned short*)mmap(0, size, 
                 PROT_READ|PROT_WRITE, MAP_SHARED, master_fd, 0);
 
-        LOGE("mmapped gpu0 %d bytes", size);
+        LOGE("mmapped gpu1 %d bytes", size);
 
         int i,j;
 
 	for(i=0; i < (size / 2)-128*128; i++)
         {
+                int done = 0;
 		for(j=0; j < 128*128; j++)
 		{
-			if(base[i+j] != j)
+			if(base[i+j] != j)//(((~((unsigned int)j)) << 16)|j))
+			{
+				if(i==0x2f0000/2)
+				{
+					LOGE("Found 0x%8.8X, Expected 0x%8.8X at 0x%X", base[i+j], j,j);//((~((unsigned int)j)) << 16)|j,j);
+				}
 				break;
+			}
 			if(j==128*128-1)
 			{
-				LOGE("Found the texture at %d", i);
+				LOGE("Found the texture at %d", i*4);
+				done = 1;
 			}
 		}
+		if(done)
+			break;
         }
+
+//	LOGE("Found 0x%8.8X, Expected 0x%8.8X", base[0x2f0000/4], 0);
 
         write(output_fd,base,size);
 
        close(master_fd);
        close(output_fd);
    }else{
-      LOGE("could not open gpu0 pmem");
+      LOGE("could not open gpu1 pmem");
    }
     return 0;
 }
@@ -118,47 +130,10 @@ void checkGLErrors()
     } while(true);
 }
 
-int run_texture_locator=0;
 status_t TextureManager::initTexture(Texture* texture)
 {
     if (texture->name != -1UL)
         return INVALID_OPERATION;
-/************************ Weird testing code */
-
-if(!run_texture_locator)
-{
-    run_texture_locator=1;
-    GLuint   text;
-    int i;
-    glGenTextures(1,&text);
-    glBindTexture(GL_TEXTURE_2D, text);
-
-    unsigned short* data = (unsigned short*)malloc(128*128*2);
-    for(i=0; i < 128*128; i++)
-    {
-       data[i] = i;
-    }
-
-    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-    glTexImage2D(GL_TEXTURE_2D, 0,
-                    GL_RGB, 128, 128, 0,
-                    GL_RGB, GL_UNSIGNED_SHORT_5_6_5, data);
-    glFinish();
-
-    checkGLErrors();
-
-    search_pmem(0);
-    search_pmem(1);
-
-    free(data);
-    glDeleteTextures(1,&text);
-}
-/*************************/
-
 
     GLuint textureName = -1;
     glGenTextures(1, &textureName);

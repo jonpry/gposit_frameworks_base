@@ -304,6 +304,9 @@ private:
             void        waitForEvent();
 public:     // hack to work around gcc 4.0.3 bug
             void        signalEvent();
+
+   status_t postMessageSync(const sp<MessageBase>& msg,
+            nsecs_t reltime=0, uint32_t flags = 0);
 private:
             void        handleConsoleEvents();
             void        handleTransaction(uint32_t transactionFlags);
@@ -367,16 +370,12 @@ private:
             void        debugShowFPS() const;
             void        drawWormhole() const;
            
-
     mutable     MessageQueue    mEventQueue;
 
     status_t postMessageAsync(const sp<MessageBase>& msg,
             nsecs_t reltime=0, uint32_t flags = 0);
 
-    status_t postMessageSync(const sp<MessageBase>& msg,
-            nsecs_t reltime=0, uint32_t flags = 0);
-
-                // access must be protected by mStateLock
+                 // access must be protected by mStateLock
     mutable     Mutex                   mStateLock;
                 State                   mCurrentState;
                 State                   mDrawingState;

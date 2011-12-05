@@ -27,6 +27,15 @@
 #include <private/ui/sw_gralloc_handle.h>
 
 namespace android {
+
+void* ogl_alloc_tmp(int w, int h, int format)
+{
+	LOGE("ogl_alloc used before surfaceflinger setup callback");
+	return NULL;
+}
+
+ogl_alloc_t GraphicBufferAllocator::ogl_alloc;
+
 // ---------------------------------------------------------------------------
 
 ANDROID_SINGLETON_STATIC_INSTANCE( GraphicBufferAllocator )
@@ -44,6 +53,7 @@ GraphicBufferAllocator::GraphicBufferAllocator()
     if (err == 0) {
         gralloc_open(module, &mAllocDev);
     }
+//    ogl_alloc = ogl_alloc_tmp;
 }
 
 GraphicBufferAllocator::~GraphicBufferAllocator()
@@ -92,7 +102,7 @@ status_t GraphicBufferAllocator::alloc(uint32_t w, uint32_t h, PixelFormat forma
     status_t err; 
     
     if (usage & GRALLOC_USAGE_HW_MASK) {
-        err = mAllocDev->alloc(mAllocDev, w, h, format, usage, handle, stride);
+        err = mAllocDev->alloc(mAllocDev, w, h, format, usage, handle, stride, ogl_alloc);
     } else {
         err = sw_gralloc_handle_t::alloc(w, h, format, usage, handle, stride);
     }

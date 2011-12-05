@@ -51,6 +51,7 @@
 #include "LayerBuffer.h"
 #include "LayerDim.h"
 #include "SurfaceFlinger.h"
+#include "OGLAlloc.h"
 
 #include "DisplayHardware/DisplayHardware.h"
 
@@ -73,6 +74,39 @@ extern "C" void NvDispMgrAutoOrientation(int rotation);
 
 namespace android {
 // ---------------------------------------------------------------------------
+
+ SurfaceFlinger *theFlinger;
+
+ class MessageOglAlloc : public MessageBase {
+        status_t result;
+	int w, h, format;
+    public:
+        MessageOglAlloc(int w, int h, int format)
+            : w(w), h(h), format(format) {
+        }
+        status_t getResult() const {
+            return result;
+        }
+        virtual bool handler() {
+	      LOGE("Running ogl_alloc from surfaceflinger main thread");
+	      OGLAlloc::Alloc(w,h,format);
+//            Mutex::Autolock _l(flinger->mStateLock);
+//            result = flinger->turnElectronBeamOffImplLocked(mode);
+            return true;
+        }
+    };
+
+void *ogl_alloc(int w, int h, int format)
+{
+	int res; 
+
+	LOGE("Running ogl_alloc from libsurfaceflinger");
+	sp<MessageBase> msg = new MessageOglAlloc(w,h,format);
+
+    	res = theFlinger->postMessageSync(msg, 0,0);
+
+	return NULL;
+}
 
 SurfaceFlinger::SurfaceFlinger()
     :   BnSurfaceComposer(), Thread(false),
@@ -107,6 +141,7 @@ SurfaceFlinger::SurfaceFlinger()
         mUseDithering(true)
 {
     init();
+    theFlinger = this;
 }
 
 void SurfaceFlinger::init()
@@ -135,6 +170,8 @@ void SurfaceFlinger::init()
     mRenderColorG = atoi(value);
     property_get("debug.sf.render_color_blue", value, "824");
     mRenderColorB = atoi(value);
+
+    GraphicBufferAllocator::ogl_alloc = ogl_alloc;
 }
 
 SurfaceFlinger::~SurfaceFlinger()

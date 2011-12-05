@@ -70,6 +70,8 @@ public:
     void dump(String8& res) const;
     static void dumpToSystemLog();
 
+    static ogl_alloc_t ogl_alloc;
+
 private:
     struct alloc_rec_t {
         uint32_t w;

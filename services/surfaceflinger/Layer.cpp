@@ -26,6 +26,7 @@
 #include <utils/StopWatch.h>
 
 #include <ui/GraphicBuffer.h>
+#include <ui/GraphicBufferAllocator.h>
 #include <ui/PixelFormat.h>
 
 #include <surfaceflinger/Surface.h>

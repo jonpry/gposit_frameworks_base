@@ -13,6 +13,7 @@ LOCAL_SRC_FILES:= \
     LayerBlur.cpp \
     LayerDim.cpp \
     MessageQueue.cpp \
+    OGLAlloc.cpp \
     SurfaceFlinger.cpp \
     TextureManager.cpp \
     Transform.cpp
