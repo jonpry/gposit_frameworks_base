@@ -78,34 +78,68 @@ namespace android {
  SurfaceFlinger *theFlinger;
 
  class MessageOglAlloc : public MessageBase {
-        status_t result;
-	int w, h, format;
     public:
-        MessageOglAlloc(int w, int h, int format)
-            : w(w), h(h), format(format) {
+        status_t result;
+	int w, h, format, stride, size;
+	GLuint text;
+	void* base;
+        MessageOglAlloc(int w, int h, int format, void* base)
+            : w(w), h(h), format(format), base(base) {
         }
         status_t getResult() const {
             return result;
         }
         virtual bool handler() {
 	      LOGE("Running ogl_alloc from surfaceflinger main thread");
-	      OGLAlloc::Alloc(w,h,format);
+	      base = OGLAlloc::Alloc(w,h,format,&text,&stride,&size,base);
 //            Mutex::Autolock _l(flinger->mStateLock);
 //            result = flinger->turnElectronBeamOffImplLocked(mode);
             return true;
         }
     };
 
-void *ogl_alloc(int w, int h, int format)
+ class MessageOglFree : public MessageBase {
+    public:
+        status_t result;
+	GLuint text;
+        MessageOglFree(unsigned int text_i)
+        {
+		text = text_i;
+        }
+        status_t getResult() const {
+            return result;
+        }
+        virtual bool handler() {
+	      LOGE("Running ogl_free from surfaceflinger main thread");
+	      OGLAlloc::Free(text);
+//            Mutex::Autolock _l(flinger->mStateLock);
+//            result = flinger->turnElectronBeamOffImplLocked(mode);
+            return true;
+        }
+    };
+
+void *ogl_alloc(int w, int h, int format, GLuint *text, int *stride, int *size, void* base)
 {
 	int res; 
 
 	LOGE("Running ogl_alloc from libsurfaceflinger");
-	sp<MessageBase> msg = new MessageOglAlloc(w,h,format);
+	sp<MessageOglAlloc> msg = new MessageOglAlloc(w,h,format,base);
 
     	res = theFlinger->postMessageSync(msg, 0,0);
+	LOGE("ogl_alloc: 1");
+	*text = msg->text;
+	*stride = msg->stride;
+	*size = msg->size;
+	LOGE("ogl_alloc: 2");
+	return msg->base;
+}
 
-	return NULL;
+void ogl_free(unsigned int text)
+{
+	LOGE("Running ogl_free from libsurfaceflinger");
+
+	sp<MessageOglFree> msg = new MessageOglFree(text);
+    	int res = theFlinger->postMessageSync(msg, 0,0);
 }
 
 SurfaceFlinger::SurfaceFlinger()
@@ -172,6 +206,7 @@ void SurfaceFlinger::init()
     mRenderColorB = atoi(value);
 
     GraphicBufferAllocator::ogl_alloc = ogl_alloc;
+    GraphicBufferAllocator::ogl_free = ogl_free;
 }
 
 SurfaceFlinger::~SurfaceFlinger()

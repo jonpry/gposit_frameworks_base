@@ -157,7 +157,7 @@ private:
         static const size_t NUM_BUFFERS = 2;
         struct BufferData {
             sp<GraphicBuffer>   buffer;
-            Image               texture;
+            Texture             texture;
         };
         // this lock protect mBufferData[].buffer but since there
         // is very little contention, we have only one like for

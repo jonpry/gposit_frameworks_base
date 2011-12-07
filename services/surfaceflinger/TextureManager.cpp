@@ -58,82 +58,12 @@ GLenum TextureManager::getTextureTarget(const Image* image) {
     return GL_TEXTURE_2D;
 }
 
-static int search_pmem(int index)
-{
-  char pmem_path[256];
-
-  sprintf(pmem_path, "/dev/pmem_gpu%d", index);
-  int master_fd = open(pmem_path, O_RDWR, 0);
-
-  sprintf(pmem_path, "/data/user/gpu%d", index);
-  int output_fd = open(pmem_path, O_RDWR|O_CREAT, 0);
-
-  if (master_fd >= 0) {
-        size_t size;
-        pmem_region region;
-        if (ioctl(master_fd, PMEM_GET_TOTAL_SIZE, &region) < 0) {
-            LOGE("PMEM_GET_TOTAL_SIZE failed, limp mode");
-            size = 8<<20;   // 8 MiB
-        } else {
-            size = region.len;
-        }
-        unsigned short* base = (unsigned short*)mmap(0, size, 
-                PROT_READ|PROT_WRITE, MAP_SHARED, master_fd, 0);
-
-        LOGE("mmapped gpu1 %d bytes", size);
-
-        int i,j;
-
-	for(i=0; i < (size / 2)-128*128; i++)
-        {
-                int done = 0;
-		for(j=0; j < 128*128; j++)
-		{
-			if(base[i+j] != j)//(((~((unsigned int)j)) << 16)|j))
-			{
-				if(i==0x2f0000/2)
-				{
-					LOGE("Found 0x%8.8X, Expected 0x%8.8X at 0x%X", base[i+j], j,j);//((~((unsigned int)j)) << 16)|j,j);
-				}
-				break;
-			}
-			if(j==128*128-1)
-			{
-				LOGE("Found the texture at %d", i*4);
-				done = 1;
-			}
-		}
-		if(done)
-			break;
-        }
-
-//	LOGE("Found 0x%8.8X, Expected 0x%8.8X", base[0x2f0000/4], 0);
-
-        write(output_fd,base,size);
-
-       close(master_fd);
-       close(output_fd);
-   }else{
-      LOGE("could not open gpu1 pmem");
-   }
-    return 0;
-}
-
-void checkGLErrors()
-{
-    do {
-        // there could be more than one error flag
-        GLenum error = glGetError();
-        if (error == GL_NO_ERROR)
-            break;
-        LOGE("GL error 0x%04x", int(error));
-    } while(true);
-}
-
 status_t TextureManager::initTexture(Texture* texture)
 {
     if (texture->name != -1UL)
         return INVALID_OPERATION;
+
+    LOGE("Unsupported initTexture");
 
     GLuint textureName = -1;
     glGenTextures(1, &textureName);
@@ -213,7 +143,7 @@ bool TextureManager::isYuvFormat(int format)
     return false;
 }
 
-status_t TextureManager::initEglImage(Image* pImage,
+status_t TextureManager::initEglImage(Texture* pImage,
         EGLDisplay dpy, const sp<GraphicBuffer>& buffer)
 {
     status_t err = NO_ERROR;
@@ -234,14 +164,12 @@ status_t TextureManager::initEglImage(Image* pImage,
     // construct an EGL_NATIVE_BUFFER_ANDROID
     android_native_buffer_t* clientBuf = buffer->getNativeBuffer();
 
-    pImage->image = (void*)clientBuf;
+    pImage->image = (void*)buffer->mTexId;
 	//TODO: do glTexImage2d
 
     if (pImage->image != NULL) {
 	//TODO: go glTexSubImage
-        if (pImage->name == -1UL) {
-            initTexture(pImage, buffer->format);
-        }
+        pImage->name = buffer->mTexId;
         const GLenum target = getTextureTarget(pImage);
         glBindTexture(target, pImage->name);
    //     glEGLImageTargetTexture2DOES(target, (GLeglImageOES)pImage->image); */
@@ -255,6 +183,18 @@ status_t TextureManager::initEglImage(Image* pImage,
             pImage->dirty  = false;
             pImage->width  = clientBuf->width;
             pImage->height = clientBuf->height;
+
+            // find the smallest power-of-two that will accommodate our surface
+            int potWidth  = 1 << (31 - clz(pImage->width));
+            int potHeight = 1 << (31 - clz(pImage->height));
+            if (potWidth  < pImage->width)  potWidth  <<= 1;
+            if (potHeight < pImage->height) potHeight <<= 1;
+            pImage->wScale = float(pImage->width)  / potWidth;
+            pImage->hScale = float(pImage->height) / potHeight;
+
+	    pImage->NPOTAdjust = true;
+
+	   LOGW("Scale factors: %f, %f", pImage->wScale, pImage->hScale);
         }
     } else {
         LOGE("eglCreateImageKHR() failed. err=0x%4x", eglGetError());
@@ -317,7 +257,7 @@ status_t TextureManager::loadTexture(Texture* texture,
         texture->potHeight = t.height;
     }
 
-    Rect bounds(dirty.bounds());
+/*    Rect bounds(dirty.bounds());
     GLvoid* data = 0;
     if (texture->width != t.width || texture->height != t.height) {
         texture->width  = t.width;
@@ -383,7 +323,7 @@ status_t TextureManager::loadTexture(Texture* texture,
                     GL_LUMINANCE, GL_UNSIGNED_BYTE,
                     t.data + bounds.top*t.stride);
         }
-    } 
+    } */
     return NO_ERROR;
 }
 

@@ -63,7 +63,7 @@ public:
     
 
     status_t alloc(uint32_t w, uint32_t h, PixelFormat format, int usage,
-            buffer_handle_t* handle, int32_t* stride);
+            buffer_handle_t* handle, int32_t* stride, unsigned int* text);
 
     status_t free(buffer_handle_t handle);
 
@@ -71,6 +71,7 @@ public:
     static void dumpToSystemLog();
 
     static ogl_alloc_t ogl_alloc;
+    static ogl_free_t ogl_free;
 
 private:
     struct alloc_rec_t {

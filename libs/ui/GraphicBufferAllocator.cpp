@@ -24,6 +24,8 @@
 
 #include <ui/GraphicBufferAllocator.h>
 
+#include <GLES/gl.h>
+
 #include <private/ui/sw_gralloc_handle.h>
 
 namespace android {
@@ -35,6 +37,7 @@ void* ogl_alloc_tmp(int w, int h, int format)
 }
 
 ogl_alloc_t GraphicBufferAllocator::ogl_alloc;
+ogl_free_t GraphicBufferAllocator::ogl_free;
 
 // ---------------------------------------------------------------------------
 
@@ -91,7 +94,7 @@ void GraphicBufferAllocator::dumpToSystemLog()
 }
 
 status_t GraphicBufferAllocator::alloc(uint32_t w, uint32_t h, PixelFormat format,
-        int usage, buffer_handle_t* handle, int32_t* stride)
+        int usage, buffer_handle_t* handle, int32_t* stride, unsigned int *text)
 {
     // make sure to not allocate a N x 0 or 0 x N buffer, since this is
     // allowed from an API stand-point allocate a 1x1 buffer instead.
@@ -100,9 +103,9 @@ status_t GraphicBufferAllocator::alloc(uint32_t w, uint32_t h, PixelFormat forma
 
     // we have a h/w allocator and h/w buffer is requested
     status_t err; 
-    
+  
     if (usage & GRALLOC_USAGE_HW_MASK) {
-        err = mAllocDev->alloc(mAllocDev, w, h, format, usage, handle, stride, ogl_alloc);
+        err = mAllocDev->alloc(mAllocDev, w, h, format, usage, handle, stride, text, ogl_alloc, ogl_free);
     } else {
         err = sw_gralloc_handle_t::alloc(w, h, format, usage, handle, stride);
     }

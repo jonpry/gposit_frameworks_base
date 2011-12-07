@@ -23,7 +23,8 @@ namespace android {
 
 class OGLAlloc {
 public:
-	static void* Alloc(int w, int h, int format);
+	static void* Alloc(int w, int h, int format, GLuint *text, int* stride, int* size, void* base);
+	static void Free(GLuint text);
 };
 
 // ---------------------------------------------------------------------------

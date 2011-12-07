@@ -106,14 +106,14 @@ FramebufferNativeWindow::FramebufferNativeWindow()
         
         err = grDev->alloc(grDev,
                 fbDev->width, fbDev->height, fbDev->format, 
-                GRALLOC_USAGE_HW_FB, &buffers[0]->handle, &buffers[0]->stride, NULL);
+                GRALLOC_USAGE_HW_FB, &buffers[0]->handle, &buffers[0]->stride, NULL, NULL, NULL);
 
         LOGE_IF(err, "fb buffer 0 allocation failed w=%d, h=%d, err=%s",
                 fbDev->width, fbDev->height, strerror(-err));
 
         err = grDev->alloc(grDev,
                 fbDev->width, fbDev->height, fbDev->format, 
-                GRALLOC_USAGE_HW_FB, &buffers[1]->handle, &buffers[1]->stride, NULL);
+                GRALLOC_USAGE_HW_FB, &buffers[1]->handle, &buffers[1]->stride, NULL, NULL, NULL);
 
         LOGE_IF(err, "fb buffer 1 allocation failed w=%d, h=%d, err=%s",
                 fbDev->width, fbDev->height, strerror(-err));

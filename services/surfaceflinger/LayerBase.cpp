@@ -458,6 +458,17 @@ void LayerBase::drawWithOpenGL(const Region& clip, const Texture& texture) const
         glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, env);
     }
 
+    //TODO: this should be done a single time during texture setup. but it seems to get clobbered. 
+            // find the smallest power-of-two that will accommodate our surface
+            int potWidth  = 1 << (31 - clz(width));
+            int potHeight = 1 << (31 - clz(height));
+            if (potWidth  < width)  potWidth  <<= 1;
+            if (potHeight < height) potHeight <<= 1;
+            float wScale = float(width)  / potWidth;
+            float hScale = float(height) / potHeight;
+
+	    int NPOTAdjust = true;
+
     /*
      *  compute texture coordinates
      *  here, we handle NPOT, cropping and buffer transformations
@@ -466,8 +477,8 @@ void LayerBase::drawWithOpenGL(const Region& clip, const Texture& texture) const
     GLfloat cl, ct, cr, cb;
     if (!mBufferCrop.isEmpty()) {
         // source is cropped
-        const GLfloat us = (texture.NPOTAdjust ? texture.wScale : 1.0f) / width;
-        const GLfloat vs = (texture.NPOTAdjust ? texture.hScale : 1.0f) / height;
+        const GLfloat us = (NPOTAdjust ? wScale : 1.0f) / width;
+        const GLfloat vs = (NPOTAdjust ? hScale : 1.0f) / height;
         cl = mBufferCrop.left   * us;
         ct = mBufferCrop.top    * vs;
         cr = mBufferCrop.right  * us;
@@ -475,9 +486,11 @@ void LayerBase::drawWithOpenGL(const Region& clip, const Texture& texture) const
     } else {
         cl = 0;
         ct = 0;
-        cr = (texture.NPOTAdjust ? texture.wScale : 1.0f);
-        cb = (texture.NPOTAdjust ? texture.hScale : 1.0f);
+        cr = (NPOTAdjust ? wScale : 1.0f);
+        cb = (NPOTAdjust ? hScale : 1.0f);
     }
+
+	LOGE("Drawing %d %f %f", NPOTAdjust, wScale, hScale);
 
     /*
      * For the buffer transformation, we apply the rotation last.

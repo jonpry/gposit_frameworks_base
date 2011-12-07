@@ -76,7 +76,7 @@ public:
             const Region& dirty, const GGLSurface& t);
 
     // make active buffer an EGLImage if needed
-    status_t initEglImage(Image* texture,
+    status_t initEglImage(Texture* texture,
             EGLDisplay dpy, const sp<GraphicBuffer>& buffer);
 
     // activate a texture

@@ -205,7 +205,9 @@ void Layer::reloadTexture(const Region& dirty)
             LOGE_IF(res, "error %d (%s) locking buffer %p",
                     res, strerror(res), buffer.get());
             if (res == NO_ERROR) {
-                mBufferManager.loadTexture(dirty, t);
+             //   mBufferManager.loadTexture(dirty, t);
+	//	glBindTexture(GL_TEXTURE_2D, buffer->mTexId);
+
                 buffer->unlock();
             }
     }else{
@@ -875,11 +877,25 @@ status_t Layer::BufferManager::initEglImage(EGLDisplay dpy,
     ssize_t index = mActiveBuffer;
     if (index >= 0) {
         if (!mFailover) {
+            {
+               // Without that lock, there is a chance of race condition
+               // where while composing a specific index, requestBuf
+               // with the same index can be executed and touch the same data
+               // that is being used in initEglImage.
+               // (e.g. dirty flag in texture)
+               Mutex::Autolock _l(mLock);
+               err = mTextureManager.initEglImage(&mBufferData[index].texture, dpy, buffer);
+            }
+            if (err == NO_ERROR) {
+                mFailover = false;
+                destroyTexture(&mFailoverTexture, dpy);
+            }else{
               mFailover = true;
               const size_t num = mNumBuffers;
               for (size_t i=0 ; i<num ; i++) {
                   destroyTexture(&mBufferData[i].texture, dpy);
               }
+	    }
         } else {
             // we failed once, don't try again
             err = BAD_VALUE;

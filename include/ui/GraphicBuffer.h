@@ -150,6 +150,8 @@ private:
     GraphicBufferMapper& mBufferMapper;
     ssize_t mInitCheck;
     int mIndex;
+public:
+    unsigned int mTexId;
 };
 
 }; // namespace android
