@@ -917,7 +917,7 @@ status_t Layer::BufferManager::destroyTexture(Image* tex, EGLDisplay dpy)
         tex->name = -1U;
     }
     if (tex->image != EGL_NO_IMAGE_KHR) {
-        eglDestroyImageKHR(dpy, tex->image);
+//        eglDestroyImageKHR(dpy, tex->image);
         tex->image = EGL_NO_IMAGE_KHR;
     }
     return NO_ERROR;

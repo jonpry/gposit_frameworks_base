@@ -76,6 +76,7 @@ namespace android {
 // ---------------------------------------------------------------------------
 
  SurfaceFlinger *theFlinger;
+ pid_t drawing_thread;
 
  class MessageOglAlloc : public MessageBase {
     public:
@@ -125,7 +126,12 @@ void *ogl_alloc(int w, int h, int format, GLuint *text, int *stride, int *size, 
 	LOGE("Running ogl_alloc from libsurfaceflinger");
 	sp<MessageOglAlloc> msg = new MessageOglAlloc(w,h,format,base);
 
-    	res = theFlinger->postMessageSync(msg, 0,0);
+	if(drawing_thread == gettid())
+	{
+	    LOGE("ogl_alloc called from drawing thread");
+	    res = msg->handler();
+	} else
+    	   res = theFlinger->postMessageSync(msg, 0,0);
 	LOGE("ogl_alloc: 1");
 	*text = msg->text;
 	*stride = msg->stride;
@@ -139,7 +145,15 @@ void ogl_free(unsigned int text)
 	LOGE("Running ogl_free from libsurfaceflinger");
 
 	sp<MessageOglFree> msg = new MessageOglFree(text);
-    	int res = theFlinger->postMessageSync(msg, 0,0);
+    	int res;
+	if(drawing_thread == gettid())
+	{
+	   LOGE("ogl_free called from drawing thread");
+	   res = msg->handler();
+	} else
+	   res = theFlinger->postMessageSync(msg, 0,0);
+
+	LOGE("ogl_free complete");
 }
 
 SurfaceFlinger::SurfaceFlinger()
@@ -450,6 +464,8 @@ status_t SurfaceFlinger::postMessageSync(const sp<MessageBase>& msg,
 
 bool SurfaceFlinger::threadLoop()
 {
+    drawing_thread = gettid();
+
     waitForEvent();
 
     // call Layer's destructor

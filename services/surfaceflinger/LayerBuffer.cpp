@@ -573,7 +573,7 @@ void LayerBuffer::BufferSource::clearTempBufferImage() const
 {
     // delete the image
     EGLDisplay dpy(getFlinger()->graphicPlane(0).getEGLDisplay());
-    eglDestroyImageKHR(dpy, mTexture.image);
+ //   eglDestroyImageKHR(dpy, mTexture.image);
 
     // and the associated texture (recreate a name)
     glDeleteTextures(1, &mTexture.name);
