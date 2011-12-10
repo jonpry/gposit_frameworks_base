@@ -81,6 +81,7 @@ public:
         data.writeInt32(h);
         data.writeInt32(format);
         data.writeInt32(usage);
+	LOGW("Calling remote request buffer");
         remote()->transact(REQUEST_BUFFER, data, &reply);
         sp<GraphicBuffer> buffer = new GraphicBuffer();
         reply.read(*buffer);

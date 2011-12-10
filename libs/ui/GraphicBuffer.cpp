@@ -135,6 +135,7 @@ status_t GraphicBuffer::initSize(uint32_t w, uint32_t h, PixelFormat format,
 {
     GraphicBufferAllocator& allocator = GraphicBufferAllocator::get();
     status_t err = allocator.alloc(w, h, format, reqUsage, &handle, &stride, &mTexId);
+    LOGW("Called allocator: handle: 0x%08X", handle);
     if (err == NO_ERROR) {
         this->width  = w;
         this->height = h;

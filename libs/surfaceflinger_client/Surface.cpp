@@ -1061,6 +1061,7 @@ status_t Surface::getBufferLocked(int index,
             }
         } else {
             err = err<0 ? err : status_t(NO_MEMORY);
+	    LOGE("Err: %d, handle %p", err, buffer->handle);
         }
     }
     return err; 
