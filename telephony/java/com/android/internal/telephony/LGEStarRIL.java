@@ -74,6 +74,10 @@ import android.os.SystemClock;
 import java.util.Date;
 import java.text.SimpleDateFormat;
 
+import android.telephony.PhoneStateListener;
+import android.telephony.TelephonyManager;
+
+
 /**
  * RIL implementation of the CommandsInterface.
  * FIXME public only for testing
@@ -85,11 +89,12 @@ public class LGEStarRIL extends RIL implements CommandsInterface {
         super(context);
     }
 
+    protected int mCallState = TelephonyManager.CALL_STATE_IDLE;
     public LGEStarRIL(Context context, int networkMode, int cdmaSubscription) {
         super(context, networkMode, cdmaSubscription);
         /* The star needs to ignore SCREEN_X states, in order to keep the
-         * batt updates running. The cosmo doesn't need this */
-        if (!SystemProperties.get("ro.build.product").equals("p920")) {
+         * batt updates running. The others don't need this */
+        if (SystemProperties.get("ro.build.product").indexOf("p99") == 0) {
             context.unregisterReceiver(mIntentReceiver);
             BroadcastReceiver mIntentReceiver = new BroadcastReceiver() {
                 @Override
@@ -107,7 +112,39 @@ public class LGEStarRIL extends RIL implements CommandsInterface {
             filter.addAction(Intent.ACTION_SCREEN_ON);
             filter.addAction(Intent.ACTION_SCREEN_OFF);
             context.registerReceiver(mIntentReceiver, filter);
+
+
+        } else {
+            BroadcastReceiver mIntentReceiver = new BroadcastReceiver() {
+                @Override
+                    public void onReceive(Context context, Intent intent) {
+                        if (intent.getAction().equals(Intent.ACTION_SCREEN_OFF)) {
+                            Log.d(LOG_TAG, "Enabling FAST_DORMANCY");
+                            RILRequest rrSPR = RILRequest.obtain(
+                                    279, null);
+                            rrSPR.mp.writeInt(1);
+                            rrSPR.mp.writeInt(1);
+                            send(rrSPR);
+                        }
+                    }
+            };
+            IntentFilter filter = new IntentFilter();
+            filter.addAction(Intent.ACTION_SCREEN_OFF);
+            context.registerReceiver(mIntentReceiver, filter);
         }
+        PhoneStateListener mPhoneStateListener = new PhoneStateListener() {
+            @Override
+            public void onCallStateChanged(int state, String incomingNumber) {
+                /* Higher state wins, unless going back to idle */
+                if (state == TelephonyManager.CALL_STATE_IDLE || state > mCallState)
+                    mCallState = state;
+            }
+        };
+
+        // register for phone state notifications.
+        ((TelephonyManager)context.getSystemService(Context.TELEPHONY_SERVICE))
+            .listen(mPhoneStateListener,
+                    PhoneStateListener.LISTEN_CALL_STATE);
     }
 
     protected boolean mPrepSetupPending = true;
@@ -209,11 +246,13 @@ public class LGEStarRIL extends RIL implements CommandsInterface {
      * Request ID overwrites
      */
 
-    static final int RIL_REQUEST_HANGUP_WAITING_OR_BACKGROUND = 204;
+    static final int RIL_REQUEST_HANG_UP_CALL = 204;
 
     public void
     hangupWaitingOrBackground (Message result) {
-        RILRequest rr = RILRequest.obtain(RIL_REQUEST_HANGUP_WAITING_OR_BACKGROUND,
+        RILRequest rr = RILRequest.obtain(mCallState == TelephonyManager.CALL_STATE_OFFHOOK ?
+                                        RIL_REQUEST_HANGUP_WAITING_OR_BACKGROUND :
+                                        RIL_REQUEST_HANG_UP_CALL,
                                         result);
 
         if (RILJ_LOGD) riljLog(rr.serialString() + "> " + requestToString(rr.mRequest));
@@ -416,6 +455,7 @@ public class LGEStarRIL extends RIL implements CommandsInterface {
             case RIL_REQUEST_HANGUP: ret =  responseVoid(p); break;
             case RIL_REQUEST_HANGUP_WAITING_OR_BACKGROUND: ret =  responseVoid(p); break;
             case RIL_REQUEST_HANGUP_FOREGROUND_RESUME_BACKGROUND: ret =  responseVoid(p); break;
+            case RIL_REQUEST_HANG_UP_CALL: ret =  responseVoid(p); break; /* LGE */
             case RIL_REQUEST_SWITCH_WAITING_OR_HOLDING_AND_ACTIVE: ret =  responseVoid(p); break;
             case RIL_REQUEST_CONFERENCE: ret =  responseVoid(p); break;
             case RIL_REQUEST_UDUB: ret =  responseVoid(p); break;
@@ -510,6 +550,7 @@ public class LGEStarRIL extends RIL implements CommandsInterface {
             case 161: ret =  responsePdpAddress(p); break; // SHOW_PDP_ADDRESS
             case 189: ret =  responseVoid(p); break; // RIL_REQUEST_SET_TIME_ZONE_REPORTING
             case 273: ret =  responseVoid(p); break; // SET_GMM_ATTACH_MODE
+            case 279: ret =  responseVoid(p); break; // FAST_DORMANCY
             case 286: ret =  responseVoid(p); break; // GET_SERVICE_LINE
             case 294: ret =  responseVoid(p); break; // GET_SERVICE_LINE
             case 296: ret =  responseVoid(p); break; // RIL_REQUEST_SET_PRODUCT_RAT
@@ -541,9 +582,12 @@ public class LGEStarRIL extends RIL implements CommandsInterface {
         }
 
         if (rr.mRequest == RIL_REQUEST_SETUP_DATA_CALL) {
-            rr.release();
-            showPdpAddress(saveDataCall);
-            return;
+            String[] strings = (String[]) ret;
+            if (strings.length <=2 || strings[1].indexOf("vsnet") == 0) {
+                rr.release();
+                showPdpAddress(saveDataCall);
+                return;
+            }
         }
 
         if (RILJ_LOGD) riljLog(rr.serialString() + "< " + requestToString(rr.mRequest)
@@ -1019,6 +1063,7 @@ public class LGEStarRIL extends RIL implements CommandsInterface {
             case RIL_REQUEST_HANGUP: return "HANGUP";
             case RIL_REQUEST_HANGUP_WAITING_OR_BACKGROUND: return "HANGUP_WAITING_OR_BACKGROUND";
             case RIL_REQUEST_HANGUP_FOREGROUND_RESUME_BACKGROUND: return "HANGUP_FOREGROUND_RESUME_BACKGROUND";
+            case RIL_REQUEST_HANG_UP_CALL: return "HANG_UP_CALL"; /* LGE */
             case RIL_REQUEST_SWITCH_WAITING_OR_HOLDING_AND_ACTIVE: return "REQUEST_SWITCH_WAITING_OR_HOLDING_AND_ACTIVE";
             case RIL_REQUEST_CONFERENCE: return "CONFERENCE";
             case RIL_REQUEST_UDUB: return "UDUB";

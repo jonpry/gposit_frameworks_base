@@ -134,6 +134,7 @@
     <string name="turn_off_radio" msgid="8198784949987062346">"关闭收音机"</string>
     <string name="screen_lock" msgid="799094655496098153">"屏幕锁定"</string>
     <string name="power_off" msgid="4266614107412865048">"关机"</string>
+    <string name="global_action_screenshot">截屏</string>
     <string name="reboot_system">重启</string>
     <string name="shutdown_progress" msgid="2281079257329981203">"正在关机..."</string>
     <string name="reboot_progress">正在重启...</string>
@@ -141,6 +142,12 @@
     <string name="recent_tasks_title" msgid="3691764623638127888">"近期任务"</string>
     <string name="no_recent_tasks" msgid="279702952298056674">"没有最近的应用程序。"</string>
     <string name="global_actions" msgid="2406416831541615258">"手机选项"</string>
+    <!-- label for item that emulates the hardware button: home -->
+    <string name="global_action_home">主页</string>
+    <!-- label for item that emulates the hardware button: menu -->
+    <string name="global_action_menu">菜单</string>
+    <!-- label for item that emulates the hardware button: back -->
+    <string name="global_action_back">返回</string>
     <string name="global_action_lock" msgid="2844945191792119712">"屏幕锁定"</string>
     <string name="global_action_power_off" msgid="4471879440839879722">"关机"</string>
     <string name="global_action_reboot">重启</string>
@@ -188,6 +195,8 @@
     <string name="permdesc_receiveSms" msgid="6298292335965966117">"允许应用程序接收和处理短信。恶意应用程序可借此监视您的信息，或者将信息删除而不向您显示。"</string>
     <string name="permlab_receiveMms" msgid="8894700916188083287">"接收彩信"</string>
     <string name="permdesc_receiveMms" msgid="4563346832000174373">"允许应用程序接收和处理彩信。恶意应用程序可借此监视您的信息，或者将信息删除而不向您显示。"</string>
+    <string name="permlab_receiveEmergencyBroadcast" msgid="1803477660846288089">"接收紧急广播"</string>
+    <string name="permdesc_receiveEmergencyBroadcast" msgid="7118393393716546131">"允许应用程序接收和处理紧急广播消息。此权限只适用于系统应用程序。"</string>
     <string name="permlab_sendSms" msgid="5600830612147671529">"发送短信"</string>
     <string name="permdesc_sendSms" msgid="1946540351763502120">"允许应用程序发送短信。恶意应用程序可能会不经您的确认就发送信息，给您带来费用。"</string>
     <string name="permlab_readSms" msgid="4085333708122372256">"读取短信或彩信"</string>
@@ -723,6 +732,7 @@
     <string name="elapsed_time_short_format_mm_ss" msgid="4431555943828711473">"<xliff:g id="MINUTES">%1$02d</xliff:g>:<xliff:g id="SECONDS">%2$02d</xliff:g>"</string>
     <string name="elapsed_time_short_format_h_mm_ss" msgid="1846071997616654124">"<xliff:g id="HOURS">%1$d</xliff:g>:<xliff:g id="MINUTES">%2$02d</xliff:g>:<xliff:g id="SECONDS">%3$02d</xliff:g>"</string>
     <string name="selectAll" msgid="6876518925844129331">"全选"</string>
+    <string name="copyAll">全部复制</string>
     <string name="selectText" msgid="4862359311088898878">"选择文字"</string>
     <string name="cut" msgid="3092569408438626261">"剪切"</string>
     <string name="copy" msgid="2681946229533511987">"复制"</string>
@@ -756,6 +766,7 @@
     <string name="anr_process" msgid="1246866008169975783">"“<xliff:g id="PROCESS">%1$s</xliff:g>”进程无响应。"</string>
     <string name="force_close" msgid="3653416315450806396">"强行关闭"</string>
     <string name="report" msgid="4060218260984795706">"报告"</string>
+    <string name="edit_perms">编辑权限</string>
     <string name="wait" msgid="7147118217226317732">"等待"</string>
     <string name="launch_warning_title" msgid="8323761616052121936">"应用程序已重定向"</string>
     <string name="launch_warning_replace" msgid="6202498949970281412">"<xliff:g id="APP_NAME">%1$s</xliff:g>目前正在运行。"</string>
@@ -919,6 +930,20 @@
 
     <!--Application killed toast -->
     <string name="app_killed_message">应用程序已结束</string>
+
+    <!-- Names of default profiles. -->
+    <string name="profileNameDefault">默认</string>
+    <string name="profileNameWork">工作</string>
+    <string name="profileNameHome">家中</string>
+    <string name="profileNameSilent">静音</string>
+    <string name="profileNameNight">深夜</string>
+
+    <!-- Names of application groups. -->
+    <string name="profileGroupPhone">电话</string>
+    <string name="profileGroupCalendar">日历</string>
+    <string name="profileGroupGmail" translate="false">Gmail</string>
+    <string name="profileGroupEmail">电子邮件</string>
+    <string name="profileGroupSMS">短信</string>
 
     <!-- Phone goggles -->
     <string name="phone_goggles_problem_count">问题 #%1$d: </string>

@@ -48,6 +48,11 @@ else
 LOCAL_CFLAGS += -DNO_OPENCORE
 endif
 
+# CFLAGS for StagefrightRecorder includes
+ifeq ($(TARGET_USE_OMAP_COMPAT),true)
+	LOCAL_CFLAGS += -DOMAP_COMPAT
+endif
+
 ifneq ($(TARGET_SIMULATOR),true)
 LOCAL_SHARED_LIBRARIES += libdl
 endif
@@ -69,6 +74,14 @@ endif
 ifeq ($(strip $(BOARD_USES_HW_MEDIAPLUGINS)),true)
     LOCAL_SHARED_LIBRARIES += libhwmediaplugin
     LOCAL_CFLAGS += -DUSE_BOARD_MEDIAPLUGIN
+endif
+
+ifeq ($(OMAP_ENHANCEMENT),true)
+
+LOCAL_C_INCLUDES += $(TOP)/hardware/ti/omap3/liboverlay
+
+LOCAL_SHARED_LIBRARIES += libui
+
 endif
 
 LOCAL_MODULE:= libmediaplayerservice

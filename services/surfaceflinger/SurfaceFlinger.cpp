@@ -186,7 +186,8 @@ SurfaceFlinger::SurfaceFlinger()
         mBootFinished(false),
         mConsoleSignals(0),
         mSecureFrameBuffer(0),
-        mUseDithering(true)
+        mUseDithering(true),
+        mUse16bppAlpha(false)
 {
     init();
     theFlinger = this;
@@ -221,6 +222,10 @@ void SurfaceFlinger::init()
 
     GraphicBufferAllocator::ogl_alloc = ogl_alloc;
     GraphicBufferAllocator::ogl_free = ogl_free;
+
+    // perf setting for the dynamic 16bpp alpha mode
+    property_get("persist.sys.use_16bpp_alpha", value, "0");
+    mUse16bppAlpha = atoi(value) == 1;
 }
 
 SurfaceFlinger::~SurfaceFlinger()
@@ -232,6 +237,13 @@ overlay_control_device_t* SurfaceFlinger::getOverlayEngine() const
 {
     return graphicPlane(0).displayHardware().getOverlayEngine();
 }
+
+#ifdef OMAP_ENHANCEMENT
+PixelFormat SurfaceFlinger::getFormat() const
+{
+    return graphicPlane(0).displayHardware().getFormat();
+}
+#endif
 
 sp<IMemoryHeap> SurfaceFlinger::getCblk() const
 {
@@ -493,7 +505,9 @@ bool SurfaceFlinger::threadLoop()
 
 #ifdef USE_COMPOSITION_BYPASS
         if (handleBypassLayer()) {
+#ifndef OMAP_ENHANCEMENT
             unlockClients();
+#endif
             return true;
         }
 #endif
@@ -514,8 +528,6 @@ bool SurfaceFlinger::threadLoop()
 
         logger.log(GraphicLog::SF_REPAINT_DONE, index);
     } else {
-        // pretend we did the post
-        hw.compositionComplete();
         usleep(16667); // 60 fps period
     }
     return true;
@@ -1169,10 +1181,13 @@ ssize_t SurfaceFlinger::addClientLayer(const sp<Client>& client,
 
 status_t SurfaceFlinger::removeLayer(const sp<LayerBase>& layer)
 {
+    status_t err = NAME_NOT_FOUND;
     Mutex::Autolock _l(mStateLock);
-    status_t err = purgatorizeLayer_l(layer);
-    if (err == NO_ERROR)
-        setTransactionFlags(eTransactionNeeded);
+    if (layer != 0) {
+        err = purgatorizeLayer_l(layer);
+        if (err == NO_ERROR)
+            setTransactionFlags(eTransactionNeeded);
+    }
     return err;
 }
 
@@ -1193,7 +1208,7 @@ status_t SurfaceFlinger::removeLayer_l(const sp<LayerBase>& layerBase)
 status_t SurfaceFlinger::purgatorizeLayer_l(const sp<LayerBase>& layerBase)
 {
     // remove the layer from the main list (through a transaction).
-    ssize_t err = removeLayer_l(layerBase);
+    status_t err = removeLayer_l(layerBase);
 
     layerBase->onRemoved();
 
@@ -1354,8 +1369,11 @@ sp<ISurface> SurfaceFlinger::createSurface(const sp<Client>& client, int pid,
             params->format = format;
 
 #ifdef NO_RGBX_8888
-            if (params->format == PIXEL_FORMAT_RGBX_8888)
+            if (params->format == PIXEL_FORMAT_RGBX_8888) {
                 params->format = PIXEL_FORMAT_RGBA_8888;
+                //to check, this should no more be usefull here
+                LOGW("surface format changed from RGBX to RGBA for pid %d (%d x %d)", pid, w, h);
+            }
 #endif
 
             if (normalLayer != 0) {
@@ -1383,11 +1401,7 @@ sp<Layer> SurfaceFlinger::createNormalSurface(
         break;
     case PIXEL_FORMAT_OPAQUE:
 
-//#ifdef USE_16BPPSURFACE_FOR_OPAQUE
         format = PIXEL_FORMAT_RGB_565;
-//#else
-//         format = PIXEL_FORMAT_RGBX_8888;
-//#endif
         break;
     }
 

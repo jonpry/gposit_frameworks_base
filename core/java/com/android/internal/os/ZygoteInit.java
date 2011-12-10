@@ -64,7 +64,18 @@ public class ZygoteInit {
     private static final int LOG_BOOT_PROGRESS_PRELOAD_END = 3030;
 
     /** when preloading, GC after allocating this many bytes */
-    private static final int PRELOAD_GC_THRESHOLD = 50000;
+
+    /**
+     * Setting the GC threshold to half the VM heap size to prevent
+     * redundant GC which contributes to a higher boot time.
+     * Taking the VM heap size from system property; assuming vm heap size
+     * is in megabytes and thus ends with "m" - inline with rest of
+     * the framework code.
+     */
+    private static final String heapSize =
+                    SystemProperties.get("dalvik.vm.heapsize", "16m");
+    private static final int PRELOAD_GC_THRESHOLD = Integer.parseInt(
+                    heapSize.substring(0, heapSize.length()-1))*1024*1024/2;
 
     public static final String USAGE_STRING =
             " <\"true\"|\"false\" for startSystemServer>";
@@ -225,12 +236,18 @@ public class ZygoteInit {
     private static final int ROOT_UID = 0;
     private static final int ROOT_GID = 0;
 
+    private static final int EEXIST = 17;
+
     /**
      * Sets effective user ID.
      */
     private static void setEffectiveUser(int uid) {
         int errno = setreuid(ROOT_UID, uid);
-        if (errno != 0) {
+        if (errno == EEXIST) {
+            // reported if uid is already good
+            Log.d(TAG, "setreuid() error ignored, same uid.");
+        }
+        else if (errno != 0) {
             Log.e(TAG, "setreuid() failed. errno: " + errno);
         }
     }

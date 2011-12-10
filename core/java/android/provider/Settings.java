@@ -1622,6 +1622,13 @@ public final class Settings {
         public static final String NOTIFICATIONS_AUDIO_FOCUS = "notifications_audio_focus";
 
         /**
+         * Default volume control to media instead of ring (for tablets)
+         *
+         * @hide
+         */
+         public static final String DEFAULT_VOLUME_CONTROL_MEDIA = "default_volume_control_media";
+
+        /**
          * Whether silent mode should allow vibration feedback. This is used
          * internally in AudioService and the Sound settings activity to
          * coordinate decoupling of vibrate and silent modes. This setting
@@ -1916,6 +1923,13 @@ public final class Settings {
          * @hide
          */
         public static final String POWER_DIALOG_PROMPT = "power_dialog_prompt";
+
+        /**
+         * Specifies whether to show share dialog after
+         * taking screenshot
+         * @hide
+         */
+        public static final String SHARE_SCREENSHOT = "share_screenshot";
 
         /**
          * How many ms to delay before enabling the security screen lock when
@@ -2248,14 +2262,14 @@ public final class Settings {
         public static final String STATUS_BAR_AM_PM = "status_bar_am_pm";
 
         /**
-         * Whether to show the CM battery percentage implementation instead
-         * of the stock battery icon
-         * 0: don't show / show stock icon instead
-         * 1: show cm battery / dont show stock icon
+         * Display style of the status bar battery information
+         * 0: Display the stock battery information
+         * 1: Display cm battery percentage implementation / dont show stock icon
+         * 2: Hide the battery information
          * default: 0
          * @hide
          */
-        public static final String STATUS_BAR_CM_BATTERY = "status_bar_cm_battery";
+        public static final String STATUS_BAR_BATTERY = "status_bar_battery";
 
         /**
          * Whether to show the clock in status bar
@@ -2447,6 +2461,14 @@ public final class Settings {
         public static final String STATUS_BAR_BRIGHTNESS_TOGGLE = "status_bar_brightness_toggle";
 
         /**
+         * Whether to display headset icon on status bar when headset is plugged in
+         * 0: headset icon is never displayed
+         * 1: headset icon is displayed when headset is plugged in
+         * @hide
+         */
+        public static final String STATUS_BAR_HEADSET = "status_bar_headset";
+
+        /**
          * Whether to wake the screen with the trackball. The value is boolean (1 or 0).
          * @hide
          */
@@ -2457,6 +2479,12 @@ public final class Settings {
          * @hide
          */
         public static final String TRACKBALL_UNLOCK_SCREEN = "trackball_unlock_screen";
+
+        /**
+         * Whether to unlock the screen with the slide-out keyboard. The value is boolean (1 or 0).
+         * @hide
+         */
+        public static final String SLIDER_UNLOCK_SCREEN = "slider_unlock_screen";
 
         /**
          * Whether to wake the screen with the volume keys. The value is boolean (1 or 0).
@@ -2490,12 +2518,29 @@ public final class Settings {
         public static final String LOCKSCREEN_CUSTOM_APP_ACTIVITY = "lockscreen_custom_app_activity";
 
         /**
+         * Ring Apps to launch with ring style and custom app toggle enabled
+         * @hide
+         */
+        public static final String[] LOCKSCREEN_CUSTOM_RING_APP_ACTIVITIES = new String[] {
+            "lockscreen_custom_app_activity_1",
+            "lockscreen_custom_app_activity_2",
+            "lockscreen_custom_app_activity_3",
+            "lockscreen_custom_app_activity_4"
+        };
+
+        /**
          * 1: Show custom app icon (currently cm logo) as with new patch
          * 2: Show messaging app icon as in old lockscreen
          * possibly more in the future (if more png files are drawn)
          * @hide
          */
         public static final String LOCKSCREEN_CUSTOM_ICON_STYLE = "lockscreen_custom_icon_style";
+
+        /**
+         * Modify lockscreen widgets layout (time,date,carrier,msg,status)
+         * @hide
+         */
+        public static final String LOCKSCREEN_WIDGETS_LAYOUT = "lockscreen_widgets_layout";
 
         /**
          * When enabled, rotary lockscreen switches app starter and unlock, so you can drag down to unlock
@@ -2508,6 +2553,19 @@ public final class Settings {
          * @hide
          */
         public static final String LOCKSCREEN_ROTARY_HIDE_ARROWS = "lockscreen_rotary_hide_arrows";
+
+        /**
+         * When enabled, ring style lockscreen switches app started and unlock, so the unlock ring
+         * is in the middle
+         * @hide
+         */
+        public static final String LOCKSCREEN_RING_UNLOCK_MIDDLE = "lockscreen_ring_unlock_middle";
+
+        /**
+         * When enabled, ring style lockscreen has only one ring in the middle for unlock
+         * @hide
+         */
+        public static final String LOCKSCREEN_RING_MINIMAL = "lockscreen_ring_minimal";
 
         /**
          * Sets the lockscreen style
@@ -2595,6 +2653,12 @@ public final class Settings {
         public static final String QUIET_HOURS_MUTE = "quiet_hours_mute";
 
         /**
+         * Whether to disable haptic feedback during quiet hours.
+         * @hide
+         */
+        public static final String QUIET_HOURS_HAPTIC = "quiet_hours_haptic";
+
+        /**
          * Whether to remove the vibration from outgoing notifications during quiet hours.
          * @hide
          */
@@ -2611,6 +2675,42 @@ public final class Settings {
          * @hide
          */
         public static final String LOCKSCREEN_ALWAYS_BATTERY = "lockscreen_always_battery";
+
+        /**
+         * Whether to show the next calendar event
+         * @hide
+         */
+        public static final String LOCKSCREEN_CALENDAR_ALARM = "lockscreen_calendar_alarm";
+
+        /**
+         * Whether to show the next calendar event's location
+         * @hide
+         */
+        public static final String LOCKSCREEN_CALENDAR_SHOW_LOCATION = "lockscreen_calendar_show_location";
+
+        /**
+         * Whether to show the next calendar event's description
+         * @hide
+         */
+        public static final String LOCKSCREEN_CALENDAR_SHOW_DESCRIPTION = "lockscreen_calendar_show_description";
+
+        /**
+         * Which calendars to look for events
+         * @hide
+         */
+        public static final String LOCKSCREEN_CALENDARS = "lockscreen_calendars";
+
+        /**
+         * How far in the future to look for events
+         * @hide
+         */
+        public static final String LOCKSCREEN_CALENDAR_LOOKAHEAD = "lockscreen_calendar_lookahead";
+
+        /**
+         * Whether to find only events with reminders
+         * @hide
+         */
+        public static final String LOCKSCREEN_CALENDAR_REMINDERS_ONLY = "lockscreen_calendar_reminders_only";
 
         /**
          * Whether to use lockscreen music controls

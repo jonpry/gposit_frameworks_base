@@ -41,6 +41,7 @@ import android.os.Message;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.provider.Settings;
+import android.provider.Settings.SettingNotFoundException;
 import android.provider.Settings.System;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
@@ -120,6 +121,15 @@ public class AudioService extends IAudioService.Stub {
     private int mMode;
     private Object mSettingsLock = new Object();
     private boolean mMediaServerOk;
+    /*
+     * OMAP4 specific intents that the AudioService
+     * will register to recieve
+     */
+    private static final String ACTION_FM_PLUG = "android.intent.action.FM_PLUG";
+    private static final String ACTION_FMTX_PLUG = "android.intent.action.FMTX_PLUG";
+    private static final String POWER_MODE = "omap.audio.power";
+    private static final String MAIN_MIC_CHOICE = "omap.audio.mic.main";
+    private static final String SUB_MIC_CHOICE = "omap.audio.mic.sub";
 
     private SoundPool mSoundPool;
     private Object mSoundEffectsLock = new Object();
@@ -183,6 +193,9 @@ public class AudioService extends IAudioService.Stub {
         AudioSystem.STREAM_MUSIC  // STREAM_FM
     };
 
+    private final static String SETTING_LAST_HEADSET_MEDIA_VOL = "android.media.AudioService.LAST_HEADSET_MEDIA_VOL";
+    private final static String SETTING_LAST_SPEAKER_MEDIA_VOL = "android.media.AudioService.LAST_SPEAKER_MEDIA_VOL";
+
     private AudioSystem.ErrorCallback mAudioSystemCallback = new AudioSystem.ErrorCallback() {
         public void onError(int error) {
             switch (error) {
@@ -233,6 +246,9 @@ public class AudioService extends IAudioService.Stub {
 
     /** @see System#NOTIFICATIONS_USE_RING_VOLUME */
     private int mNotificationsUseRingVolume;
+
+    // Default volume control media
+    private int mDefaultVolumeMedia;
 
     // Broadcast receiver for device connections intent broadcasts
     private final BroadcastReceiver mReceiver = new AudioServiceBroadcastReceiver();
@@ -305,6 +321,14 @@ public class AudioService extends IAudioService.Stub {
         // Register for device connection intent broadcasts.
         IntentFilter intentFilter =
                 new IntentFilter(Intent.ACTION_HEADSET_PLUG);
+        if (SystemProperties.OMAP_ENHANCEMENT) {
+            intentFilter.addAction(ACTION_FM_PLUG);
+            intentFilter.addAction(ACTION_FMTX_PLUG);
+            intentFilter.addAction(POWER_MODE);
+            intentFilter.addAction(MAIN_MIC_CHOICE);
+            intentFilter.addAction(SUB_MIC_CHOICE);
+        }
+
         intentFilter.addAction(BluetoothA2dp.ACTION_SINK_STATE_CHANGED);
         intentFilter.addAction(BluetoothHeadset.ACTION_STATE_CHANGED);
         intentFilter.addAction(Intent.ACTION_DOCK_EVENT);
@@ -384,6 +408,9 @@ public class AudioService extends IAudioService.Stub {
         if (mNotificationsUseRingVolume == 1) {
             STREAM_VOLUME_ALIAS[AudioSystem.STREAM_NOTIFICATION] = AudioSystem.STREAM_RING;
         }
+
+        mDefaultVolumeMedia = System.getInt(cr,
+                Settings.System.DEFAULT_VOLUME_CONTROL_MEDIA, 0);
         // Each stream will read its own persisted settings
 
         // Broadcast the sticky intent
@@ -416,10 +443,15 @@ public class AudioService extends IAudioService.Stub {
 
         int streamType = getActiveStreamType(suggestedStreamType);
 
-        // Don't play sound on other streams
-        if (streamType != AudioSystem.STREAM_RING && (flags & AudioManager.FLAG_PLAY_SOUND) != 0) {
-            flags &= ~AudioManager.FLAG_PLAY_SOUND;
+ 
+        if ((flags & AudioManager.FLAG_PLAY_SOUND) != 0) {
+            if (!(mDefaultVolumeMedia == 1
+                    && streamType == AudioSystem.STREAM_MUSIC
+                    && !AudioSystem.isStreamActive(AudioSystem.STREAM_MUSIC))
+                    && streamType != AudioSystem.STREAM_RING) {
+                flags &= ~AudioManager.FLAG_PLAY_SOUND;
         }
+}
 
         adjustStreamVolume(streamType, direction, flags);
     }
@@ -1238,7 +1270,7 @@ public class AudioService extends IAudioService.Stub {
             return AudioSystem.STREAM_MUSIC;
         } else if (suggestedStreamType == AudioManager.USE_DEFAULT_STREAM_TYPE) {
             // Log.v(TAG, "getActiveStreamType: Forcing STREAM_RING...");
-            return AudioSystem.STREAM_RING;
+            return (mDefaultVolumeMedia == 0) ? AudioSystem.STREAM_RING : AudioSystem.STREAM_MUSIC;
         } else {
             // Log.v(TAG, "getActiveStreamType: Returning suggested type " + suggestedStreamType);
             return suggestedStreamType;
@@ -1729,6 +1761,8 @@ public class AudioService extends IAudioService.Stub {
                     Settings.System.MODE_RINGER_STREAMS_AFFECTED), false, this);
             mContentResolver.registerContentObserver(Settings.System.getUriFor(
                     Settings.System.NOTIFICATIONS_USE_RING_VOLUME), false, this);
+            mContentResolver.registerContentObserver(Settings.System.getUriFor(
+                    Settings.System.DEFAULT_VOLUME_CONTROL_MEDIA), false, this);
         }
 
         @Override
@@ -1767,6 +1801,9 @@ public class AudioService extends IAudioService.Stub {
                                 SENDMSG_REPLACE, 1, 1, mStreamStates[AudioSystem.STREAM_NOTIFICATION], 0);
                     }
                 }
+
+                mDefaultVolumeMedia = Settings.System.getInt(mContentResolver,
+                        Settings.System.DEFAULT_VOLUME_CONTROL_MEDIA, 0);
             }
         }
     }
@@ -1919,6 +1956,17 @@ public class AudioService extends IAudioService.Stub {
                 int microphone = intent.getIntExtra("microphone", 0);
                 String name = intent.getStringExtra("name");
                 
+                int lastHeadsetModeMusicVolume;
+                try {
+                    lastHeadsetModeMusicVolume = System.getInt(mContentResolver, state==1?SETTING_LAST_HEADSET_MEDIA_VOL:SETTING_LAST_SPEAKER_MEDIA_VOL);
+                } catch (SettingNotFoundException e) {
+                    lastHeadsetModeMusicVolume = -1;
+                }
+                System.putInt(mContentResolver, state==1?SETTING_LAST_SPEAKER_MEDIA_VOL:SETTING_LAST_HEADSET_MEDIA_VOL, getStreamVolume(AudioSystem.STREAM_MUSIC));
+                if (lastHeadsetModeMusicVolume >= 0) {
+                    setStreamVolume(AudioSystem.STREAM_MUSIC, lastHeadsetModeMusicVolume, AudioManager.FLAG_SHOW_UI);
+                }
+
                 if (name != null && !name.equalsIgnoreCase("1")) {
                     if (microphone != 0) {
                         boolean isConnected = mConnectedDevices.containsKey(AudioSystem.DEVICE_OUT_WIRED_HEADSET);
@@ -1980,6 +2028,80 @@ public class AudioService extends IAudioService.Stub {
                             mContext.sendStickyBroadcast(newIntent);
                         }
                     }
+                }
+           } else if (SystemProperties.OMAP_ENHANCEMENT && action.equals(ACTION_FM_PLUG)) {
+               int state = intent.getIntExtra("state",0);
+
+               boolean isConnected = mConnectedDevices.containsKey(AudioSystem.DEVICE_IN_FM_ANALOG );
+               if (state == 0 && isConnected) {
+                      Log.v(TAG,"calling FM Rx Analog  Off");
+                      AudioSystem.setDeviceConnectionState(AudioSystem.DEVICE_IN_FM_ANALOG ,
+                               AudioSystem.DEVICE_STATE_UNAVAILABLE,"");
+                      mConnectedDevices.remove(AudioSystem.DEVICE_IN_FM_ANALOG );
+               } else if (state == 1 && !isConnected)  {
+                      Log.v(TAG,"calling FM Rx Analog On");
+                      AudioSystem.setDeviceConnectionState(AudioSystem.DEVICE_IN_FM_ANALOG ,
+                                AudioSystem.DEVICE_STATE_AVAILABLE,"");
+                      mConnectedDevices.put( new Integer(AudioSystem.DEVICE_IN_FM_ANALOG ), "");
+               }
+           } else if (SystemProperties.OMAP_ENHANCEMENT && action.equals(ACTION_FMTX_PLUG)) {
+               int state = intent.getIntExtra("state",0);
+
+               boolean isConnected = mConnectedDevices.containsKey(AudioSystem.DEVICE_OUT_FM_TRANSMIT );
+               if (state == 0 && isConnected) {
+                      Log.e(TAG,"calling FM Transmit Off");
+                      AudioSystem.setDeviceConnectionState(AudioSystem.DEVICE_OUT_FM_TRANSMIT ,
+                               AudioSystem.DEVICE_STATE_UNAVAILABLE,"");
+                      mConnectedDevices.remove(AudioSystem.DEVICE_OUT_FM_TRANSMIT );
+               } else if (state == 1 && !isConnected)  {
+                      Log.e(TAG,"calling FM Transmit On");
+                      AudioSystem.setDeviceConnectionState(AudioSystem.DEVICE_OUT_FM_TRANSMIT ,
+                                AudioSystem.DEVICE_STATE_AVAILABLE,"");
+                      mConnectedDevices.put( new Integer(AudioSystem.DEVICE_OUT_FM_TRANSMIT ), "");
+               }
+            } else if (SystemProperties.OMAP_ENHANCEMENT && action.equals(POWER_MODE)) {
+                Intent noisyIntent = new Intent(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
+                mContext.sendBroadcast(noisyIntent);
+                boolean isConnected = mConnectedDevices.containsKey(AudioSystem.DEVICE_OUT_WIRED_HEADSET) |
+                                      mConnectedDevices.containsKey(AudioSystem.DEVICE_OUT_WIRED_HEADPHONE);
+                if (intent.getBooleanExtra("LP", false) && isConnected) {
+                    // enable low power mode
+                    AudioSystem.setDeviceConnectionState(AudioSystem.DEVICE_OUT_LOW_POWER ,
+                                                         AudioSystem.DEVICE_STATE_AVAILABLE,"");
+                    mConnectedDevices.put(new Integer(AudioSystem.DEVICE_OUT_LOW_POWER), "");
+                    Log.e(TAG,"Action: power mode is now LP, re-routing");
+                }
+                else {
+                    Log.e(TAG,"Action: power mode is now HQ, re-routing");
+                    AudioSystem.setDeviceConnectionState(AudioSystem.DEVICE_OUT_LOW_POWER ,
+                                                         AudioSystem.DEVICE_STATE_UNAVAILABLE,"");
+                    mConnectedDevices.remove(AudioSystem.DEVICE_OUT_LOW_POWER);
+                }
+            } else if (SystemProperties.OMAP_ENHANCEMENT && action.equals(MAIN_MIC_CHOICE)) {
+                /*
+                 * mic choice is not configurable by intent yet, this is here for future use.
+                 * eventually, the mic choice will be set from applications using this intent
+                 * and we will update the logic to be flexible for mics other than DMIC0.
+                 */
+                Intent noisyIntent = new Intent(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
+                mContext.sendBroadcast(noisyIntent);
+                if (intent.getBooleanExtra("DMic0L", true)) {
+                     Log.e(TAG,"MAIN MIC - DMIC0L selected");
+                } else if (intent.getBooleanExtra("AMic0", true)) {
+                    Log.e(TAG,"MAIN MIC - AMIC selected");
+                } else {
+                    Log.e(TAG,"MAIN MIC - invalid selection, only [DMIC0L,AMIC0] supported");
+                }
+            } else if (SystemProperties.OMAP_ENHANCEMENT && action.equals(SUB_MIC_CHOICE)) {
+                // mic choice is not configurable by intent yet, this is here for future use
+                Intent noisyIntent = new Intent(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
+                mContext.sendBroadcast(noisyIntent);
+                if (intent.getBooleanExtra("DMic0R", true)) {
+                    Log.e(TAG,"SUB MIC - DMIC0R selected");
+                } else if (intent.getBooleanExtra("AMic1", true)) {
+                    Log.e(TAG,"SUB MIC - AMIC selected");
+                } else {
+                    Log.e(TAG,"SUB MIC - invalid selection, only [DMIC0R,AMIC] supported");
                 }
             }
         }

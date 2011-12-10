@@ -152,6 +152,7 @@
     <string name="screen_lock" msgid="799094655496098153">"Blocco schermo"</string>
     <string name="power_off" msgid="4266614107412865048">"Spegni"</string>
     <string name="reboot_system">Riavvia</string>
+    <string name="reboot_reboot">Riavvia</string>
     <string name="shutdown_progress" msgid="2281079257329981203">"Spegnimento..."</string>
     <string name="reboot_progress">Riavvio in corso\u2026</string>
     <string name="shutdown_confirm" msgid="649792175242821353">"Il telefono verrà spento."</string>
@@ -217,6 +218,8 @@
     <string name="permdesc_receiveSms" msgid="6298292335965966117">"Consente il ricevimento e l\'elaborazione di SMS da parte dell\'applicazione. Le applicazioni dannose potrebbero monitorare i messaggi o eliminarli senza visualizzarli."</string>
     <string name="permlab_receiveMms" msgid="8894700916188083287">"ricezione MMS"</string>
     <string name="permdesc_receiveMms" msgid="4563346832000174373">"Consente il ricevimento e l\'elaborazione di MMS da parte dell\'applicazione. Le applicazioni dannose potrebbero monitorare i messaggi o eliminarli senza visualizzarli."</string>
+    <string name="permlab_receiveEmergencyBroadcast" msgid="1803477660846288089">"ricezione di trasmissioni di emergenza"</string>
+    <string name="permdesc_receiveEmergencyBroadcast" msgid="7118393393716546131">"Consente all\'applicazione di ricevere ed elaborare messaggi di trasmissioni di emergenza. Tale autorizzazione è disponibile solo per applicazioni di sistema."</string>
     <string name="permlab_sendSms" msgid="5600830612147671529">"invio SMS"</string>
     <string name="permdesc_sendSms" msgid="1946540351763502120">"Consente all\'applicazione di inviare messaggi SMS. Le applicazioni dannose potrebbero inviare messaggi a tua insaputa facendoti sostenere dei costi."</string>
     <string name="permlab_readSms" msgid="4085333708122372256">"lettura SMS o MMS"</string>
@@ -349,6 +352,10 @@
     <string name="permdesc_recordAudio" msgid="6493228261176552356">"Consente l\'accesso dell\'applicazione al percorso di registrazione dell\'audio."</string>
     <string name="permlab_camera" msgid="3616391919559751192">"acquisizione di foto e video"</string>
     <string name="permdesc_camera" msgid="6004878235852154239">"Consente di scattare foto e riprendere video nell\'applicazione con la fotocamera. L\'applicazione può acquisire in qualsiasi momento le immagini rilevate dalla fotocamera."</string>
+    <!-- Title of an application permission, listed so the user can choose whether they want to allow the application to do this. -->
+    <string name="permlab_rawAudio">accesso audio di basso livello</string>
+    <!-- Description of an application permission, listed so the user can choose whether they want to allow the application to do this. -->
+    <string name="permdesc_rawAudio">Consente all\'applicazione di avere accesso completo all\'hardware audio.</string>
     <string name="permlab_brick" msgid="8337817093326370537">"disattivazione telefono"</string>
     <string name="permdesc_brick" msgid="5569526552607599221">"Consente all\'applicazione di disattivare l\'intero telefono in modo definitivo. Questa autorizzazione è molto pericolosa."</string>
     <string name="permlab_reboot" msgid="2898560872462638242">"riavvio forzato del telefono"</string>
@@ -793,6 +800,8 @@
     <string name="anr_process" msgid="1246866008169975783">"Il processo <xliff:g id="PROCESS">%1$s</xliff:g> non risponde."</string>
     <string name="force_close" msgid="3653416315450806396">"Termina"</string>
     <string name="report" msgid="4060218260984795706">"Segnala"</string>
+    <!-- Button allowing the user to open the application settings screen to edit permissions. -->
+    <string name="edit_perms">Modifica autorizzazioni</string>
     <!-- Button allowing the user reset the revoked permissions for application which has encountered an error. -->
     <string name="reset_perms">Ripristina autorizzazioni</string>
     <string name="wait" msgid="7147118217226317732">"Attendi"</string>

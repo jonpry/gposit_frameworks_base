@@ -295,6 +295,18 @@
     <string name="power_off">Power off</string>
     <!-- Button to reboot the phone, within the Phone Options dialog -->
     <string name="reboot_system">Reboot phone</string>
+    <!-- Button to reboot the phone, within the Reboot Options dialog -->
+    <string name="reboot_reboot">Reboot</string>
+    <!-- Button to reboot the phone into recovery, within the Reboot Options dialog -->
+    <string name="reboot_recovery">Recovery</string>
+    <!-- Button to reboot the phone into bootloader, within the Reboot Options dialog -->
+    <string name="reboot_bootloader">Bootloader</string>
+    <!-- Button to reboot the phone into bootmenu, within the Reboot Options dialog -->
+    <string name="reboot_bootmenu">Bootmenu</string>
+    <!-- Button to reboot the phone into fastboot, within the Reboot Options dialog -->
+    <string name="reboot_fastboot">Fastboot</string>
+    <!-- Button to reboot the phone into download, within the Reboot Options dialog -->
+    <string name="reboot_download">Download</string>
 
     <!-- Shutdown Progress Dialog. This is shown if the user chooses to power off the phone. -->
     <string name="shutdown_progress">Shutting down\u2026</string>
@@ -920,6 +932,11 @@
     <string name="permdesc_camera">Allows application to take pictures and videos
         with the camera. This allows the application at any time to collect
         images the camera is seeing.</string>
+
+    <!-- Title of an application permission, listed so the user can choose whether they want to allow the application to do this. -->
+    <string name="permlab_rawAudio">low-level audio access</string>
+    <!-- Description of an application permission, listed so the user can choose whether they want to allow the application to do this. -->
+    <string name="permdesc_rawAudio">Gives the application complete access to the audio hardware.</string>
 
     <!-- Title of an application permission, listed so the user can choose whether they want to allow the application to do this. -->
     <string name="permlab_brick">permanently disable phone</string>
@@ -2033,6 +2050,8 @@
     <string name="force_close">Force close</string>
     <!-- Button allowing the user to send a bug report for application which has encountered an error. -->
     <string name="report">Report</string>
+    <!-- Button allowing the user to open the application settings screen to edit permissions. -->
+    <string name="edit_perms">Edit permissions</string>
     <!-- Button allowing the user reset the revoked permissions for application which has encountered an error. -->
     <string name="reset_perms">Reset permissions</string>
     <!-- Button allowing the user to choose to wait for an application that is not responding to become responsive again. -->

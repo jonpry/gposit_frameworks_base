@@ -104,12 +104,18 @@ else
  LOCAL_SHARED_LIBRARIES += libdl
 endif
 
+
 LOCAL_MODULE:= libaudioflinger
 
 ifeq ($(BOARD_HAVE_BLUETOOTH),true)
 lkjlkj
   LOCAL_CFLAGS += -DWITH_BLUETOOTH -DWITH_A2DP
   LOCAL_SHARED_LIBRARIES += liba2dp
+ifeq ($(BOARD_FORCE_STATIC_A2DP),true)
+  LOCAL_CFLAGS += -DWITH_STATIC_A2DP
+  LOCAL_SRC_FILES += A2dpAudioInterface.cpp
+  LOCAL_C_INCLUDES += $(call include-path-for, bluez)
+endif
 endif
 
 ifeq ($(AUDIO_POLICY_TEST),true)
@@ -136,6 +142,10 @@ ifeq ($(BOARD_USE_LVMX),true)
     LOCAL_STATIC_LIBRARIES += liblifevibes
     LOCAL_SHARED_LIBRARIES += liblvmxservice
 #    LOCAL_SHARED_LIBRARIES += liblvmxipc
+endif
+
+ifeq ($(BOARD_USE_MOTO_DOCK_HACK),true)
+   LOCAL_CFLAGS += -DMOTO_DOCK_HACK
 endif
 
 include $(BUILD_SHARED_LIBRARY)

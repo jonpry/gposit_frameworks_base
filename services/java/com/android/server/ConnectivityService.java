@@ -653,7 +653,7 @@ public class ConnectivityService extends IConnectivityManager.Stub {
     private class FeatureUser implements IBinder.DeathRecipient {
         int mNetworkType;
         String mFeature;
-        IBinder mBinder;
+        final IBinder mBinder;
         int mPid;
         int mUid;
         long mCreateTime;
@@ -1622,8 +1622,13 @@ public class ConnectivityService extends IConnectivityManager.Stub {
                     break;
 
                 case NetworkStateTracker.EVENT_NETWORK_SUBTYPE_CHANGED:
-                    // fill me in
+                {
+                    info = (NetworkInfo) msg.obj;
+                    int netType = info.getType();
+                    NetworkStateTracker thisNet = mNetTrackers[netType];
+                    thisNet.updateNetworkSettings();
                     break;
+                }
                 case EVENT_RESTORE_DEFAULT_NETWORK:
                     FeatureUser u = (FeatureUser)msg.obj;
                     u.expire();

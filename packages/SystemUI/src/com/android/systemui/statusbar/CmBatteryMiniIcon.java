@@ -30,6 +30,7 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.os.Handler;
 import android.os.SystemClock;
+import android.os.BatteryManager;
 import android.provider.Settings;
 import android.util.AttributeSet;
 import android.view.View;
@@ -54,8 +55,8 @@ public class CmBatteryMiniIcon extends ImageView {
     // contains the current bat level, values: 0-100
     private int mBatteryLevel = 0;
 
-    // contains current charger plugged state
-    private boolean mBatteryPlugged = false;
+    // contains current charging state of the battery.
+    private boolean mBatteryCharging = false;
 
     // recalculation of BATTERY_MINI_ICON_WIDTH_DIP to pixels
     private int mWidthPx;
@@ -63,8 +64,9 @@ public class CmBatteryMiniIcon extends ImageView {
     // recalculation of BATTERY_MINI_ICON_MARGIN_RIGHT_DIP to pixels
     private int mMarginRightPx;
 
-    // weather to show this battery widget or not
-    private boolean mShowCmBattery = false;
+    // battery style preferences
+    private static final int BATTERY_STYLE_PERCENT   = 1;
+    private int mStatusBarBattery;
 
     // used for animation and still values when not charging/fully charged
     private int mCurrentFrame = 0;
@@ -91,7 +93,7 @@ public class CmBatteryMiniIcon extends ImageView {
         void observe() {
             ContentResolver resolver = mContext.getContentResolver();
             resolver.registerContentObserver(
-                    Settings.System.getUriFor(Settings.System.STATUS_BAR_CM_BATTERY), false, this);
+                    Settings.System.getUriFor(Settings.System.STATUS_BAR_BATTERY), false, this);
         }
 
         @Override
@@ -190,11 +192,11 @@ public class CmBatteryMiniIcon extends ImageView {
             if (action.equals(Intent.ACTION_BATTERY_CHANGED)) {
                 // mIconId = intent.getIntExtra("icon-small", 0);
                 mBatteryLevel = intent.getIntExtra("level", 0);
-                boolean oldPluggedState = mBatteryPlugged;
-                mBatteryPlugged = intent.getIntExtra("plugged", 0) != 0;
+                boolean oldChargingState = mBatteryCharging;
+                mBatteryCharging = intent.getIntExtra("status", 0) == BatteryManager.BATTERY_STATUS_CHARGING;
 
-                if (mBatteryPlugged && mBatteryLevel < 100) {
-                    if (!oldPluggedState)
+                if (mBatteryCharging && mBatteryLevel < 100) {
+                    if (!oldChargingState)
                         startTimer();
                     if(mBatteryLevel % 10 == 0)
                         updateAnimDuration();
@@ -217,7 +219,7 @@ public class CmBatteryMiniIcon extends ImageView {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        if (!mAttached || !mShowCmBattery)
+        if (!mAttached || mStatusBarBattery != BATTERY_STYLE_PERCENT)
             return;
 
         canvas.drawBitmap(mMiniIconCache[mCurrentFrame], mMatrix, mPaint);
@@ -269,13 +271,15 @@ public class CmBatteryMiniIcon extends ImageView {
     private void updateSettings() {
         ContentResolver resolver = mContext.getContentResolver();
 
-        mShowCmBattery = (Settings.System
-                .getInt(resolver, Settings.System.STATUS_BAR_CM_BATTERY, 0) == 1);
+        int statusBarBattery = (Settings.System.getInt(resolver,
+                Settings.System.STATUS_BAR_BATTERY, 2));
+        mStatusBarBattery = Integer.valueOf(statusBarBattery);
 
-        if (mShowCmBattery)
+        if (mStatusBarBattery == BATTERY_STYLE_PERCENT) {
             setVisibility(View.VISIBLE);
-        else
+        } else {
             setVisibility(View.GONE);
+        }
     }
 
     // should be toggled to private (or inlined at constructor), once StatusBarService.updateResources properly handles theme change

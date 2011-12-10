@@ -55,6 +55,7 @@ public SamsungRIL(Context context, int networkMode, int cdmaSubscription) {
     static final int RIL_UNSOL_SAMSUNG_UNKNOWN_MAGIC_REQUEST_2 = 11011;
     static final int RIL_UNSOL_HSDPA_STATE_CHANGED = 11016;
     static final int RIL_UNSOL_SAMSUNG_UNKNOWN_MAGIC_REQUEST = 11012;
+    static final int RIL_REQUEST_DIAL_EMERGENCY = 10016;
 
 @Override
  public void
@@ -205,7 +206,7 @@ public SamsungRIL(Context context, int networkMode, int cdmaSubscription) {
             case RIL_REQUEST_STK_HANDLE_CALL_SETUP_REQUESTED_FROM_SIM: ret =  responseInts(p); break;
             case RIL_REQUEST_EXPLICIT_CALL_TRANSFER: ret =  responseVoid(p); break;
             case RIL_REQUEST_SET_PREFERRED_NETWORK_TYPE: ret =  responseVoid(p); break;
-            case RIL_REQUEST_GET_PREFERRED_NETWORK_TYPE: ret =  responseInts(p); break;
+            case RIL_REQUEST_GET_PREFERRED_NETWORK_TYPE: ret =  responseNetworkType(p); break;
             case RIL_REQUEST_GET_NEIGHBORING_CELL_IDS: ret = responseCellList(p); break;
             case RIL_REQUEST_SET_LOCATION_UPDATES: ret =  responseVoid(p); break;
             case RIL_REQUEST_CDMA_SET_SUBSCRIPTION: ret =  responseVoid(p); break;
@@ -285,6 +286,37 @@ public SamsungRIL(Context context, int networkMode, int cdmaSubscription) {
         }
 
         rr.release();
+    }
+
+    @Override
+    public void
+    dial(String address, int clirMode, UUSInfo uusInfo, Message result) {
+        RILRequest rr;
+        if (PhoneNumberUtils.isEmergencyNumber(address)) {
+            Log.v(LOG_TAG, "Emergency dial: " + address);
+            rr = RILRequest.obtain(RIL_REQUEST_DIAL_EMERGENCY, result);
+            rr.mp.writeString(address + "/");
+        }
+        else {
+            rr = RILRequest.obtain(RIL_REQUEST_DIAL, result);
+            rr.mp.writeString(address);
+        }
+
+        rr.mp.writeInt(clirMode);
+        rr.mp.writeInt(0); // UUS information is absent
+
+        if (uusInfo == null) {
+            rr.mp.writeInt(0); // UUS information is absent
+        } else {
+            rr.mp.writeInt(1); // UUS information is present
+            rr.mp.writeInt(uusInfo.getType());
+            rr.mp.writeInt(uusInfo.getDcs());
+            rr.mp.writeByteArray(uusInfo.getUserData());
+        }
+
+        if (RILJ_LOGD) riljLog(rr.serialString() + "> " + requestToString(rr.mRequest));
+
+        send(rr);
     }
 
 	@Override
@@ -791,6 +823,19 @@ public SamsungRIL(Context context, int networkMode, int cdmaSubscription) {
 
 	        return response;
 	    }
+
+    protected Object
+    responseNetworkType(Parcel p) {
+        int response[] = (int[]) responseInts(p);
+
+        // When the modem responds Phone.NT_MODE_GLOBAL, it means Phone.NT_MODE_WCDMA_PREF
+        if (!mIsSamsungCdma && response[0] == Phone.NT_MODE_GLOBAL) {
+            Log.d(LOG_TAG, "Overriding network type response from global to WCDMA preferred");
+            response[0] = Phone.NT_MODE_WCDMA_PREF;
+        }
+
+        return response;
+    }
 
     protected class SamsungDriverCall extends DriverCall {
         @Override

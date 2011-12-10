@@ -234,6 +234,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     int mLidKeyboardAccessibility;
     int mLidNavigationAccessibility;
     boolean mScreenOn = false;
+    int mScreenOffReason;
     boolean mOrientationSensorEnabled = false;
     int mCurrentAppOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
     static final int DEFAULT_ACCELEROMETER_ROTATION = 0;
@@ -312,6 +313,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     boolean mCamBtnMusicControls;
     // keeps track of long press state
     boolean mIsLongPress;
+    // keeps track of headset button repeat count
+    int mHsetRepeats;
 
     // Behavior of POWER button while in-call and screen on.
     // (See Settings.Secure.INCALL_POWER_BUTTON_BEHAVIOR.)
@@ -618,6 +621,25 @@ public class PhoneWindowManager implements WindowManagerPolicy {
 
             // Shamelessly copied from Kmobs LockScreen controls, works for Pandora, etc...
             sendMediaButtonEvent(KeyEvent.KEYCODE_MEDIA_PREVIOUS);
+        };
+    };
+
+    /**
+     * When a headset hook longpress expires, pass new repeat event to user
+     */
+    Runnable mHsetHookLongPress = new Runnable() {
+        public void run() {
+            if (mScreenOn) return;
+            mHsetRepeats++;
+            long eventtime = SystemClock.uptimeMillis();
+            Intent downIntent = new Intent(Intent.ACTION_MEDIA_BUTTON, null);
+            KeyEvent downEvent = new KeyEvent(eventtime, eventtime, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_HEADSETHOOK, mHsetRepeats);
+            if (mHsetRepeats == 1) {
+                downEvent = KeyEvent.changeFlags(downEvent, KeyEvent.FLAG_LONG_PRESS);
+            }
+            downIntent.putExtra(Intent.EXTRA_KEY_EVENT, downEvent);
+            mContext.sendOrderedBroadcast(downIntent, null);
+            mHandler.postDelayed(mHsetHookLongPress, ViewConfiguration.getLongPressTimeout());
         };
     };
 
@@ -2066,18 +2088,19 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     || ((keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) && mVolumeWakeScreen);
 
             // Don't wake the screen if we have not set the option "wake with volume" in CMParts
+            // OR if "wake with volume" is set but screen is off due to proximity sensor
             // regardless if WAKE Flag is set in keylayout
-            if (!isScreenOn
-                    && isWakeKey
-                    && !mVolumeWakeScreen
+            final boolean isOffByProx = (mScreenOffReason == WindowManagerPolicy.OFF_BECAUSE_OF_PROX_SENSOR);
+            if (isWakeKey
+                    && (!mVolumeWakeScreen || isOffByProx)
                     && ((keyCode == KeyEvent.KEYCODE_VOLUME_UP) || (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN))) {
                 isWakeKey = false;
             }
 
             // make sure keyevent get's handled as power key on volume-wake
-            if(!isScreenOn && mVolumeWakeScreen && isWakeKey && ((keyCode == KeyEvent.KEYCODE_VOLUME_UP)
+            if(mVolumeWakeScreen && isWakeKey && ((keyCode == KeyEvent.KEYCODE_VOLUME_UP)
                     || (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)))
-                keyCode=KeyEvent.KEYCODE_POWER;
+                keyCode = KeyEvent.KEYCODE_POWER;
 
             if (down && isWakeKey) {
                 if (keyguardActive) {
@@ -2199,7 +2222,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             }
 
             case KeyEvent.KEYCODE_POWER: {
-                if ((mTopFullscreenOpaqueWindowState.getAttrs().flags & WindowManager.LayoutParams.PREVENT_POWER_KEY) != 0){
+                if (mTopFullscreenOpaqueWindowState != null &&
+                        (mTopFullscreenOpaqueWindowState.getAttrs().flags
+                        & WindowManager.LayoutParams.PREVENT_POWER_KEY) != 0) {
                     return result;
                 }
                 result &= ~ACTION_PASS_TO_USER;
@@ -2249,6 +2274,17 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     mBroadcastWakeLock.acquire();
                     mHandler.post(new PassHeadsetKey(keyEvent));
                 }
+
+                if (keyCode == KeyEvent.KEYCODE_HEADSETHOOK) {
+                    if (!down) {
+                        mHandler.removeCallbacks(mHsetHookLongPress);
+                    }
+                    else if ((result & ACTION_PASS_TO_USER) == 0) {
+                        mHsetRepeats = 0;
+                        mHandler.postDelayed(mHsetHookLongPress, ViewConfiguration.getLongPressTimeout());
+                    }
+                }
+
                 break;
             }
 
@@ -2324,6 +2360,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         mKeyguardMediator.onScreenTurnedOff(why);
         synchronized (mLock) {
             mScreenOn = false;
+            mScreenOffReason = why;
             updateOrientationListenerLp();
             updateLockScreenTimeout();
         }

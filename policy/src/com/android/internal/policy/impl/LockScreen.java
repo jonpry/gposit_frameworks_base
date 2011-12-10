@@ -23,6 +23,7 @@ import com.android.internal.widget.LockPatternUtils;
 import com.android.internal.widget.RotarySelector;
 import com.android.internal.widget.SlidingTab;
 import com.android.internal.widget.SlidingTab.OnTriggerListener;
+import com.android.internal.widget.RingSelector;
 
 import android.content.ActivityNotFoundException;
 import android.content.Context;
@@ -34,6 +35,7 @@ import android.content.res.Resources;
 import android.content.res.ColorStateList;
 import android.net.Uri;
 import android.text.format.DateFormat;
+import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -58,6 +60,7 @@ import android.os.ParcelFileDescriptor;
 import android.os.SystemClock;
 import android.os.SystemProperties;
 import android.os.Vibrator;
+import android.preference.MultiSelectListPreference;
 import android.provider.Settings;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
@@ -78,7 +81,7 @@ import java.net.URISyntaxException;
  */
 class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateMonitor.InfoCallback,
         KeyguardUpdateMonitor.SimStateCallback, SlidingTab.OnTriggerListener, RotarySelector.OnDialTriggerListener,
-        OnGesturePerformedListener{
+        RingSelector.OnRingTriggerListener, OnGesturePerformedListener{
 
     private static final boolean DBG = false;
     private static final String TAG = "LockScreen";
@@ -91,10 +94,12 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
     private KeyguardUpdateMonitor mUpdateMonitor;
     private KeyguardScreenCallback mCallback;
 
+    private GestureOverlayView mGestureOverlay;
     private TextView mCarrier;
     private SlidingTab mTabSelector;
     private SlidingTab mSelector2;
     private RotarySelector mRotarySelector;
+    private RingSelector mRingSelector;
     private DigitalClock mClock;
     private TextView mDate;
     private TextView mTime;
@@ -143,11 +148,26 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
     private boolean mTrackballUnlockScreen = (Settings.System.getInt(mContext.getContentResolver(),
             Settings.System.TRACKBALL_UNLOCK_SCREEN, 0) == 1);
 
+    private boolean mSliderUnlockScreen = (Settings.System.getInt(mContext.getContentResolver(),
+            Settings.System.SLIDER_UNLOCK_SCREEN, 0) == 1);
+
     private boolean mMenuUnlockScreen = (Settings.System.getInt(mContext.getContentResolver(),
             Settings.System.MENU_UNLOCK_SCREEN, 0) == 1);
 
     private boolean mLockAlwaysBattery = (Settings.System.getInt(mContext.getContentResolver(),
             Settings.System.LOCKSCREEN_ALWAYS_BATTERY, 0) == 1);
+
+    private boolean mLockCalendarAlarm = (Settings.System.getInt(mContext.getContentResolver(),
+            Settings.System.LOCKSCREEN_CALENDAR_ALARM, 0) == 1);
+
+    private String[] mCalendars = MultiSelectListPreference.parseStoredValue(Settings.System.getString(
+            mContext.getContentResolver(), Settings.System.LOCKSCREEN_CALENDARS));
+
+    private boolean mLockCalendarRemindersOnly = (Settings.System.getInt(mContext.getContentResolver(),
+            Settings.System.LOCKSCREEN_CALENDAR_REMINDERS_ONLY, 0) == 1);
+
+    private long mLockCalendarLookahead = Settings.System.getLong(mContext.getContentResolver(),
+            Settings.System.LOCKSCREEN_CALENDAR_LOOKAHEAD, 10800000);
 
     private boolean mLockMusicControls = (Settings.System.getInt(mContext.getContentResolver(),
             Settings.System.LOCKSCREEN_MUSIC_CONTROLS, 1) == 1);
@@ -173,11 +193,25 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
     private String mCustomAppActivity = (Settings.System.getString(mContext.getContentResolver(),
             Settings.System.LOCKSCREEN_CUSTOM_APP_ACTIVITY));
 
+    private String[] mCustomRingAppActivities = new String[] {
+            Settings.System.getString(mContext.getContentResolver(),
+                    Settings.System.LOCKSCREEN_CUSTOM_RING_APP_ACTIVITIES[0]),
+            Settings.System.getString(mContext.getContentResolver(),
+                    Settings.System.LOCKSCREEN_CUSTOM_RING_APP_ACTIVITIES[1]),
+            Settings.System.getString(mContext.getContentResolver(),
+                    Settings.System.LOCKSCREEN_CUSTOM_RING_APP_ACTIVITIES[2]),
+            Settings.System.getString(mContext.getContentResolver(),
+                    Settings.System.LOCKSCREEN_CUSTOM_RING_APP_ACTIVITIES[3])
+    };
+
     private int mLockscreenStyle = (Settings.System.getInt(mContext.getContentResolver(),
-            Settings.System.LOCKSCREEN_STYLE_PREF, 3));
+            Settings.System.LOCKSCREEN_STYLE_PREF, 5));
 
     private int mCustomIconStyle = Settings.System.getInt(mContext.getContentResolver(),
             Settings.System.LOCKSCREEN_CUSTOM_ICON_STYLE, 1);
+
+    private int mWidgetLayout = Settings.System.getInt(mContext.getContentResolver(),
+            Settings.System.LOCKSCREEN_WIDGETS_LAYOUT, 0);
 
     private boolean mRotaryUnlockDown = (Settings.System.getInt(mContext.getContentResolver(),
             Settings.System.LOCKSCREEN_ROTARY_UNLOCK_DOWN, 0) == 1);
@@ -192,6 +226,14 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
     private boolean mUseLenseSquareLockscreen = (mLockscreenStyle == 4);
     private boolean mLensePortrait = false;
 
+    private boolean mUseRingLockscreen = (mLockscreenStyle == 5);
+
+    private boolean mRingUnlockMiddle = (Settings.System.getInt(mContext.getContentResolver(),
+            Settings.System.LOCKSCREEN_RING_UNLOCK_MIDDLE, 0) == 1);
+
+    private boolean mRingMinimal = (Settings.System.getInt(mContext.getContentResolver(),
+            Settings.System.LOCKSCREEN_RING_MINIMAL, 0) == 1);
+
     private double mGestureSensitivity;
     private boolean mGestureTrail;
     private boolean mGestureActive;
@@ -200,6 +242,9 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
 
     private Bitmap mCustomAppIcon;
     private String mCustomAppName;
+
+    private Bitmap[] mCustomRingAppIcons = new Bitmap[4];
+
     /**
      * The status of this lock screen.
      */
@@ -343,6 +388,8 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
         mTabSelector.setHoldAfterTrigger(true, false);
         mTabSelector.setLeftHintText(R.string.lockscreen_unlock_label);
 
+        mRingSelector = (RingSelector) findViewById(R.id.ring_selector);
+
         if (mCustomAppActivity != null) {
             try {
                 Intent i = Intent.parseUri(mCustomAppActivity, 0);
@@ -372,6 +419,28 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
                     }
                 }
             } catch (URISyntaxException e) {
+            }
+        }
+
+        float density = getResources().getDisplayMetrics().density;
+        int ringAppIconSize = context.getResources().getInteger(R.integer.config_ringSecIconSizeDIP);
+        for (int q = 0; q < 4; q++) {
+            if (mCustomRingAppActivities[q] != null) {
+                mRingSelector.showSecRing(q);
+                try {
+                    Intent i = Intent.parseUri(mCustomRingAppActivities[q], 0);
+                    PackageManager pm = context.getPackageManager();
+                    ActivityInfo ai = i.resolveActivityInfo(pm, PackageManager.GET_ACTIVITIES);
+                    if (ai != null) {
+                        Bitmap iconBmp = ((BitmapDrawable) ai.loadIcon(pm)).getBitmap();
+                        mCustomRingAppIcons[q] = Bitmap.createScaledBitmap(iconBmp,
+                                (int) (density * ringAppIconSize), (int) (density * ringAppIconSize), true);
+                        mRingSelector.setSecRingResources(q, mCustomRingAppIcons[q], R.drawable.jog_ring_secback_normal);
+                    }
+                } catch (URISyntaxException e) {
+                }
+            } else {
+                mRingSelector.hideSecRing(q);
             }
         }
 
@@ -474,8 +543,49 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
 
         //hide most items when we are in potrait lense mode
         mLensePortrait=(mUseLenseSquareLockscreen && mCreationOrientation != Configuration.ORIENTATION_LANDSCAPE);
-        if (mLensePortrait)
+        if (mLensePortrait || mWidgetLayout == 1 )
             setLenseWidgetsVisibility(View.INVISIBLE);
+
+        //Ring setup
+        if (mRingMinimal) {
+            mRingSelector.enableRingMinimal(mRingMinimal);
+            //unlock with middle - left and right are hidden
+            mRingSelector.setMiddleRingResources(
+                R.drawable.ic_jog_dial_unlock,
+                R.drawable.jog_tab_target_green,
+                R.drawable.jog_ring_ring_green);
+        }else if(mCustomAppToggle) {
+            mRingSelector.enableMiddleRing(mCustomAppToggle);
+            if(mRingUnlockMiddle) {
+                mRingSelector.enableMiddlePrimary(mRingUnlockMiddle);
+                mRingSelector.setLeftRingResources(
+                    R.drawable.ic_jog_dial_custom,
+                    R.drawable.jog_tab_target_green,
+                    R.drawable.jog_ring_ring_green);
+                //unlock with middle
+                mRingSelector.setMiddleRingResources(
+                    R.drawable.ic_jog_dial_unlock,
+                    R.drawable.jog_tab_target_green,
+                    R.drawable.jog_ring_ring_green);
+                }else{
+                //unlock on left
+                mRingSelector.setLeftRingResources(
+                    R.drawable.ic_jog_dial_unlock,
+                    R.drawable.jog_tab_target_green,
+                    R.drawable.jog_ring_ring_green);
+                mRingSelector.setMiddleRingResources(
+                    R.drawable.ic_jog_dial_custom,
+                    R.drawable.jog_tab_target_green,
+                    R.drawable.jog_ring_ring_green);
+                }
+        }else{
+            //no middle ring
+            mRingSelector.setLeftRingResources(
+                R.drawable.ic_jog_dial_unlock,
+                R.drawable.jog_tab_target_green,
+                R.drawable.jog_ring_ring_green);
+            mRingSelector.enableRingMinimal(false);
+        }
 
         mTabSelector.setLeftTabResources(
                 R.drawable.ic_jog_dial_unlock,
@@ -487,6 +597,7 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
 
         mRotarySelector.setOnDialTriggerListener(this);
         mTabSelector.setOnTriggerListener(this);
+        mRingSelector.setOnRingTriggerListener(this);
 
         if (mSelector2 != null) {
             mSelector2.setLeftTabResources(R.drawable.ic_jog_dial_answer,
@@ -507,15 +618,7 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
                         mCallback.goToUnlockScreen();
                     } else if (whichHandle == SlidingTab.OnTriggerListener.RIGHT_HANDLE) {
                         if (mCustomAppActivity != null) {
-                            try {
-                                Intent i = Intent.parseUri(mCustomAppActivity, 0);
-                                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                                        | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
-                                mContext.startActivity(i);
-                                mCallback.goToUnlockScreen();
-                            } catch (URISyntaxException e) {
-                            } catch (ActivityNotFoundException e) {
-                            }
+                            runActivity(mCustomAppActivity);
                         }
                     }
                 }
@@ -538,11 +641,11 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
             mGestureTrail = false;
         }
 
-        GestureOverlayView gestures = (GestureOverlayView) findViewById(R.id.gestures);
-        gestures.setGestureVisible(mGestureTrail);
-        gestures.setGestureColor(mGestureColor);
+        mGestureOverlay = (GestureOverlayView) findViewById(R.id.gestures);
+        mGestureOverlay.setGestureVisible(mGestureTrail);
+        mGestureOverlay.setGestureColor(mGestureColor);
         boolean GestureCanUnlock = false;
-        if (gestures != null) {
+        if (mGestureOverlay != null) {
             if (mGestureActive) {
                 File mStoreFile = new File(Environment.getDataDirectory(),
                         "/misc/lockscreen_gestures");
@@ -550,7 +653,7 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
                         Settings.System.LOCKSCREEN_GESTURES_SENSITIVITY, 3);
                 mLibrary = GestureLibraries.fromFile(mStoreFile);
                 if (mLibrary.load()) {
-                    gestures.addOnGesturePerformedListener(this);
+                    mGestureOverlay.addOnGesturePerformedListener(this);
                     for (String name : mLibrary.getGestureEntries()) {
                         String[] payload = name.split("___", 2);
                         if ("UNLOCK".equals(payload[1])) {
@@ -570,6 +673,31 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
         }
 
         resetStatusInfo(updateMonitor);
+        centerWidgets();
+    }
+
+    private void centerWidgets() {
+        if (mWidgetLayout == 2) {
+            RelativeLayout.LayoutParams layoutParams = (RelativeLayout.LayoutParams)
+            mCarrier.getLayoutParams();
+            layoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
+            mCarrier.setLayoutParams(layoutParams);
+            mCarrier.setGravity(Gravity.CENTER_HORIZONTAL);
+            layoutParams = (RelativeLayout.LayoutParams)mDate.getLayoutParams();
+            layoutParams.addRule(RelativeLayout.CENTER_HORIZONTAL, 1);
+            mDate.setLayoutParams(layoutParams);
+            layoutParams = (RelativeLayout.LayoutParams)mStatus1.getLayoutParams();
+            layoutParams.addRule(RelativeLayout.CENTER_HORIZONTAL, 1);
+            layoutParams.leftMargin = 0;
+            mStatus1.setLayoutParams(layoutParams);
+            layoutParams = (RelativeLayout.LayoutParams)mStatus2.getLayoutParams();
+            layoutParams.addRule(RelativeLayout.CENTER_HORIZONTAL, 1);
+            layoutParams.leftMargin = 0;
+            mStatus2.setLayoutParams(layoutParams);
+            layoutParams = (RelativeLayout.LayoutParams)mClock.getLayoutParams();
+            layoutParams.addRule(RelativeLayout.CENTER_HORIZONTAL, 1);
+            mClock.setLayoutParams(layoutParams);
+        }
     }
 
     static void setBackground(Context bcontext, ViewGroup layout){
@@ -602,20 +730,22 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
         boolean vibe = mSilentMode
             && (mAudioManager.getRingerMode() == AudioManager.RINGER_MODE_VIBRATE);
 
-        mRotarySelector
-                .setRightHandleResource(mSilentMode ? (vibe ? R.drawable.ic_jog_dial_vibrate_on
-                        : R.drawable.ic_jog_dial_sound_off) : R.drawable.ic_jog_dial_sound_on);
+        int iconId = mSilentMode ? (vibe ? R.drawable.ic_jog_dial_vibrate_on
+                : R.drawable.ic_jog_dial_sound_off) : R.drawable.ic_jog_dial_sound_on;
+        int targetId = mSilentMode ? R.drawable.jog_tab_target_yellow
+                : R.drawable.jog_tab_target_gray;
 
-        mTabSelector.setRightTabResources(
-                mSilentMode ? ( vibe ? R.drawable.ic_jog_dial_vibrate_on
-                                     : R.drawable.ic_jog_dial_sound_off )
-                            : R.drawable.ic_jog_dial_sound_on,
-                mSilentMode ? R.drawable.jog_tab_target_yellow
-                            : R.drawable.jog_tab_target_gray,
+        mRotarySelector.setRightHandleResource(iconId);
+
+        mTabSelector.setRightTabResources(iconId, targetId,
                 mSilentMode ? R.drawable.jog_tab_bar_right_sound_on
                             : R.drawable.jog_tab_bar_right_sound_off,
                 mSilentMode ? R.drawable.jog_tab_right_sound_on
                             : R.drawable.jog_tab_right_sound_off);
+
+        mRingSelector.setRightRingResources(iconId, targetId,
+                mSilentMode ? R.drawable.jog_ring_ring_yellow
+                        : R.drawable.jog_ring_ring_gray);
     }
 
     private void resetStatusInfo(KeyguardUpdateMonitor updateMonitor) {
@@ -655,19 +785,6 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
         } else if (whichHandle == SlidingTab.OnTriggerListener.RIGHT_HANDLE) {
             toggleSilentMode();
             updateRightTabResources();
-
-            String message = mSilentMode ?
-                    getContext().getString(R.string.global_action_silent_mode_on_status) :
-                    getContext().getString(R.string.global_action_silent_mode_off_status);
-
-            final int toastIcon = mSilentMode
-                ? R.drawable.ic_lock_ringer_off
-                : R.drawable.ic_lock_ringer_on;
-
-            final int toastColor = mSilentMode
-                ? getContext().getResources().getColor(R.color.keyguard_text_color_soundoff)
-                : getContext().getResources().getColor(R.color.keyguard_text_color_soundon);
-            toastMessage(mScreenLocked, message, toastColor, toastIcon);
             mCallback.pokeWakelock();
         }
     }
@@ -694,31 +811,43 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
             mCallback.goToUnlockScreen();
         } else if (mCustomAppTrigger) {
             if (mCustomAppActivity != null) {
-                try {
-                    Intent i = Intent.parseUri(mCustomAppActivity, 0);
-                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                        | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
-                    mContext.startActivity(i);
-                    mCallback.goToUnlockScreen();
-                } catch (URISyntaxException e) {
-                } catch (ActivityNotFoundException e) {
-                }
+                runActivity(mCustomAppActivity);
             }
         } else if (whichHandle == RotarySelector.OnDialTriggerListener.RIGHT_HANDLE) {
             // toggle silent mode
             toggleSilentMode();
             updateRightTabResources();
+            mCallback.pokeWakelock();
+        }
+    }
 
-            String message = mSilentMode ? getContext().getString(
-                    R.string.global_action_silent_mode_on_status) : getContext().getString(
-                    R.string.global_action_silent_mode_off_status);
+    /** {@inheritDoc} */
+    public void onRingTrigger(View v, int whichRing, int whichApp) {
+        boolean mUnlockTrigger=false;
+        boolean mCustomAppTrigger=false;
 
-            final int toastIcon = mSilentMode ? R.drawable.ic_lock_ringer_off
-                    : R.drawable.ic_lock_ringer_on;
-            final int toastColor = mSilentMode ? getContext().getResources().getColor(
-                    R.color.keyguard_text_color_soundoff) : getContext().getResources().getColor(
-                    R.color.keyguard_text_color_soundon);
-            toastMessage(mScreenLocked, message, toastColor, toastIcon);
+        if (whichRing == RingSelector.OnRingTriggerListener.LEFT_RING) {
+            if(mRingUnlockMiddle)
+                mCustomAppTrigger=true;
+            else
+                mUnlockTrigger=true;
+        }
+        if (whichRing == RingSelector.OnRingTriggerListener.MIDDLE_RING) {
+            if(mRingUnlockMiddle || mRingMinimal)
+                mUnlockTrigger=true;
+            else
+                mCustomAppTrigger=true;
+        }
+
+        if (mUnlockTrigger) {
+            mCallback.goToUnlockScreen();
+        }else if (mCustomAppTrigger) {
+            if (mCustomRingAppActivities[whichApp] != null) {
+                runActivity(mCustomRingAppActivities[whichApp]);
+            }
+        }else if (whichRing == RingSelector.OnRingTriggerListener.RIGHT_RING) {
+            toggleSilentMode();
+            updateRightTabResources();
             mCallback.pokeWakelock();
         }
     }
@@ -730,10 +859,14 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
             mTabSelector.setRightHintText(mSilentMode ? R.string.lockscreen_sound_on_label
                     : R.string.lockscreen_sound_off_label);
         }
+
         // Don't poke the wake lock when returning to a state where the handle is
         // not grabbed since that can happen when the system (instead of the user)
         // cancels the grab.
         if (grabbedState != SlidingTab.OnTriggerListener.NO_HANDLE) {
+            mGestureOverlay.cancelGesture();
+            mCallback.pokeWakelock();
+        } else if (mUseRingLockscreen && mCallback != null) {
             mCallback.pokeWakelock();
         }
     }
@@ -784,9 +917,17 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
 
     private void refreshAlarmDisplay() {
         mNextAlarm = mLockPatternUtils.getNextAlarm();
+
         if (mNextAlarm != null) {
             mAlarmIcon = getContext().getResources().getDrawable(R.drawable.ic_lock_idle_alarm);
+        } else if (mLockCalendarAlarm) {
+            mNextAlarm = mLockPatternUtils.getNextCalendarAlarm(mLockCalendarLookahead,
+                    mCalendars, mLockCalendarRemindersOnly);
+            if (mNextAlarm != null) {
+                mAlarmIcon = getContext().getResources().getDrawable(R.drawable.ic_lock_idle_calendar);
+            }
         }
+
         updateStatusLines();
     }
 
@@ -857,14 +998,15 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
         mNowPlaying.setVisibility(View.GONE);
         mAlbumArt.setVisibility(View.GONE);
 
-        if (am.isMusicActive() && !nowPlaying.equals("") && mLockMusicControls
-                && mCreationOrientation == Configuration.ORIENTATION_PORTRAIT) {
-            if (mNowPlayingToggle)
+        if (am.isMusicActive() && !nowPlaying.equals("") && mLockMusicControls) {
+            if (mNowPlayingToggle) {
                 mNowPlaying.setVisibility(View.VISIBLE);
+                mNowPlaying.setSelected(true); // set focus to TextView to allow scrolling
+            }
             // Set album art
             Uri uri = getArtworkUri(getContext(), KeyguardViewMediator.SongId(),
                     KeyguardViewMediator.AlbumId());
-            if (uri != null && mAlbumArtToggle) {
+            if (uri != null && mAlbumArtToggle && !(mUseRingLockscreen && mCustomAppToggle && !mHideUnlockTab)) {
                 mAlbumArt.setImageURI(uri);
                 mAlbumArt.setVisibility(View.VISIBLE);
             }
@@ -902,7 +1044,7 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
 
     private void updateStatusLines() {
         if (!mStatus.showStatusLines()
-                || (mCharging == null && mNextAlarm == null) || mLensePortrait) {
+                || (mCharging == null && mNextAlarm == null) || mLensePortrait || mWidgetLayout == 1) {
             mStatus1.setVisibility(View.INVISIBLE);
             mStatus2.setVisibility(View.INVISIBLE);
         } else if (mCharging != null && mNextAlarm == null) {
@@ -975,7 +1117,15 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
 
         mCustomAppToggle = (Settings.System.getInt(mContext.getContentResolver(),
                                 Settings.System.LOCKSCREEN_CUSTOM_APP_TOGGLE, 0) == 1);
-        mRotarySelector.enableCustomAppDimple(mCustomAppToggle);
+        mRingMinimal = (Settings.System.getInt(mContext.getContentResolver(),
+                                Settings.System.LOCKSCREEN_RING_MINIMAL, 0) == 1);
+        if (mCustomAppToggle) {
+            mRingSelector.enableMiddleRing(mCustomAppToggle);
+            mRotarySelector.enableCustomAppDimple(mCustomAppToggle);
+        }
+        if (mRingMinimal) {
+            mRingSelector.enableRingMinimal(mRingMinimal);
+        }
 
         mEmergencyCallButton.setVisibility(View.GONE); // in almost all cases
 
@@ -991,26 +1141,8 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
                 mScreenLocked.setText("");
 
                 // layout
+                setUnlockWidgetsState(true);
                 mScreenLocked.setVisibility(View.VISIBLE);
-                if (mUseRotaryLockscreen || mUseRotaryRevLockscreen || mUseLenseSquareLockscreen) {
-                    mRotarySelector.setVisibility(View.VISIBLE);
-                    mRotarySelector.setRevamped(mUseRotaryRevLockscreen);
-                    mRotarySelector.setLenseSquare(mUseLenseSquareLockscreen);
-                    mTabSelector.setVisibility(View.GONE);
-                    if (mSelector2 != null) {
-                        mSelector2.setVisibility(View.GONE);
-                    }
-                } else {
-                    mRotarySelector.setVisibility(View.GONE);
-                    mTabSelector.setVisibility(View.VISIBLE);
-                    if (mSelector2 != null) {
-                        if (mCustomAppToggle) {
-                            mSelector2.setVisibility(View.VISIBLE);
-                        } else {
-                            mSelector2.setVisibility(View.GONE);
-                        }
-                    }
-                }
                 mEmergencyCallText.setVisibility(View.GONE);
                 break;
             case NetworkLocked:
@@ -1023,26 +1155,8 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
                 mScreenLocked.setText(R.string.lockscreen_instructions_when_pattern_disabled);
 
                 // layout
+                setUnlockWidgetsState(true);
                 mScreenLocked.setVisibility(View.VISIBLE);
-                if (mUseRotaryLockscreen || mUseRotaryRevLockscreen || mUseLenseSquareLockscreen) {
-                    mRotarySelector.setVisibility(View.VISIBLE);
-                    mRotarySelector.setRevamped(mUseRotaryRevLockscreen);
-                    mRotarySelector.setLenseSquare(mUseLenseSquareLockscreen);
-                    mTabSelector.setVisibility(View.GONE);
-                    if (mSelector2 != null) {
-                        mSelector2.setVisibility(View.GONE);
-                    }
-                } else {
-                    mRotarySelector.setVisibility(View.GONE);
-                    mTabSelector.setVisibility(View.VISIBLE);
-                    if (mSelector2 != null) {
-                        if (mCustomAppToggle) {
-                            mSelector2.setVisibility(View.VISIBLE);
-                        } else {
-                            mSelector2.setVisibility(View.GONE);
-                        }
-                    }
-                }
                 mEmergencyCallText.setVisibility(View.GONE);
                 break;
             case SimMissing:
@@ -1051,26 +1165,8 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
                 mScreenLocked.setText(R.string.lockscreen_missing_sim_instructions);
 
                 // layout
+                setUnlockWidgetsState(true);
                 mScreenLocked.setVisibility(View.VISIBLE);
-                if (mUseRotaryLockscreen || mUseRotaryRevLockscreen || mUseLenseSquareLockscreen) {
-                    mRotarySelector.setVisibility(View.VISIBLE);
-                    mRotarySelector.setRevamped(mUseRotaryRevLockscreen);
-                    mRotarySelector.setLenseSquare(mUseLenseSquareLockscreen);
-                    mTabSelector.setVisibility(View.GONE);
-                    if (mSelector2 != null) {
-                        mSelector2.setVisibility(View.GONE);
-                    }
-                } else {
-                    mRotarySelector.setVisibility(View.GONE);
-                    mTabSelector.setVisibility(View.VISIBLE);
-                    if (mSelector2 != null) {
-                        if (mCustomAppToggle) {
-                            mSelector2.setVisibility(View.VISIBLE);
-                        } else {
-                            mSelector2.setVisibility(View.GONE);
-                        }
-                    }
-                }
                 mEmergencyCallText.setVisibility(View.VISIBLE);
                 // do not need to show the e-call button; user may unlock
                 break;
@@ -1083,12 +1179,8 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
                 mScreenLocked.setText(R.string.lockscreen_missing_sim_instructions);
 
                 // layout
+                setUnlockWidgetsState(false);
                 mScreenLocked.setVisibility(View.VISIBLE);
-                mRotarySelector.setVisibility(View.GONE);
-                mTabSelector.setVisibility(View.GONE); // cannot unlock
-                if (mSelector2 != null) {
-                    mSelector2.setVisibility(View.GONE);
-                }
                 mEmergencyCallText.setVisibility(View.VISIBLE);
                 mEmergencyCallButton.setVisibility(View.VISIBLE);
                 break;
@@ -1100,26 +1192,8 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
                                 getContext().getText(R.string.lockscreen_sim_locked_message)));
 
                 // layout
+                setUnlockWidgetsState(true);
                 mScreenLocked.setVisibility(View.INVISIBLE);
-                if (mUseRotaryLockscreen || mUseRotaryRevLockscreen || mUseLenseSquareLockscreen) {
-                    mRotarySelector.setVisibility(View.VISIBLE);
-                    mRotarySelector.setRevamped(mUseRotaryRevLockscreen);
-                    mRotarySelector.setLenseSquare(mUseLenseSquareLockscreen);
-                    mTabSelector.setVisibility(View.GONE);
-                    if (mSelector2 != null) {
-                        mSelector2.setVisibility(View.GONE);
-                    }
-                } else {
-                    mRotarySelector.setVisibility(View.GONE);
-                    mTabSelector.setVisibility(View.VISIBLE);
-                    if (mSelector2 != null) {
-                        if (mCustomAppToggle) {
-                            mSelector2.setVisibility(View.VISIBLE);
-                        } else {
-                            mSelector2.setVisibility(View.GONE);
-                        }
-                    }
-                }
                 mEmergencyCallText.setVisibility(View.GONE);
                 break;
             case SimPukLocked:
@@ -1131,19 +1205,54 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
                 mScreenLocked.setText(R.string.lockscreen_sim_puk_locked_instructions);
 
                 // layout
+                setUnlockWidgetsState(false);
                 mScreenLocked.setVisibility(View.VISIBLE);
-                mRotarySelector.setVisibility(View.GONE);
-                mTabSelector.setVisibility(View.GONE); // cannot unlock
-                if (mSelector2 != null) {
-                     mSelector2.setVisibility(View.GONE);
-                }
                 mEmergencyCallText.setVisibility(View.VISIBLE);
                 mEmergencyCallButton.setVisibility(View.VISIBLE);
                 break;
         }
         if (mHideUnlockTab) {
+            setUnlockWidgetsState(false);
+        }
+    }
+
+    private void setUnlockWidgetsState(boolean show) {
+        if (show) {
+            if (mUseRotaryLockscreen || mUseRotaryRevLockscreen || mUseLenseSquareLockscreen) {
+                mRotarySelector.setVisibility(View.VISIBLE);
+                mRotarySelector.setRevamped(mUseRotaryRevLockscreen);
+                mRotarySelector.setLenseSquare(mUseLenseSquareLockscreen);
+                mTabSelector.setVisibility(View.GONE);
+                mRingSelector.setVisibility(View.GONE);
+                if (mSelector2 != null) {
+                    mSelector2.setVisibility(View.GONE);
+                }
+            } else if (mUseRingLockscreen) {
+                mRingSelector.setVisibility(View.VISIBLE);
+                mRotarySelector.setVisibility(View.GONE);
+                mTabSelector.setVisibility(View.GONE);
+                if (mSelector2 != null) {
+                    mSelector2.setVisibility(View.GONE);
+                }
+            } else {
+                mRotarySelector.setVisibility(View.GONE);
+                mRingSelector.setVisibility(View.GONE);
+                mTabSelector.setVisibility(View.VISIBLE);
+                if (mSelector2 != null) {
+                    if (mCustomAppToggle) {
+                        mSelector2.setVisibility(View.VISIBLE);
+                    } else {
+                        mSelector2.setVisibility(View.GONE);
+                    }
+                }
+            }
+        } else {
             mRotarySelector.setVisibility(View.GONE);
+            mRingSelector.setVisibility(View.GONE);
             mTabSelector.setVisibility(View.GONE);
+            if (mSelector2 != null) {
+                mSelector2.setVisibility(View.GONE);
+            }
         }
     }
 
@@ -1168,14 +1277,16 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
 
     void updateConfiguration() {
         Configuration newConfig = getResources().getConfiguration();
-        if (newConfig.orientation != mCreationOrientation) {
-            mCallback.recreateMe(newConfig);
-        } else if (newConfig.hardKeyboardHidden != mKeyboardHidden) {
+        if (newConfig.hardKeyboardHidden != mKeyboardHidden) {
             mKeyboardHidden = newConfig.hardKeyboardHidden;
             final boolean isKeyboardOpen = mKeyboardHidden == Configuration.HARDKEYBOARDHIDDEN_NO;
-            if (mUpdateMonitor.isKeyguardBypassEnabled() && isKeyboardOpen) {
+            if (mSliderUnlockScreen && isKeyboardOpen) {
                 mCallback.goToUnlockScreen();
+                return;
             }
+        }
+        if (newConfig.orientation != mCreationOrientation) {
+            mCallback.recreateMe(newConfig);
         }
     }
 
@@ -1209,7 +1320,9 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
 
     /** {@inheritDoc} */
     public void onPause() {
-
+        if (mUseRingLockscreen) {
+            mRingSelector.setVisibility(View.VISIBLE);
+        }
     }
 
     /** {@inheritDoc} */
@@ -1240,25 +1353,38 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
     }
 
     private void toggleSilentMode() {
-            // tri state silent<->vibrate<->ring if silent mode is enabled, otherwise toggle silent mode
-            final boolean mVolumeControlSilent = Settings.System.getInt(mContext.getContentResolver(),
-                Settings.System.VOLUME_CONTROL_SILENT, 0) != 0;
-            mSilentMode = mVolumeControlSilent
-                ? ((mAudioManager.getRingerMode() == AudioManager.RINGER_MODE_VIBRATE) || !mSilentMode)
-                : !mSilentMode;
-            if (mSilentMode) {
-                final boolean vibe = mVolumeControlSilent
-                ? (mAudioManager.getRingerMode() != AudioManager.RINGER_MODE_VIBRATE)
-                : (Settings.System.getInt(
-                    getContext().getContentResolver(),
-                    Settings.System.VIBRATE_IN_SILENT, 1) == 1);
+        // tri state silent<->vibrate<->ring if silent mode is enabled, otherwise toggle silent mode
+        final boolean mVolumeControlSilent = Settings.System.getInt(mContext.getContentResolver(),
+            Settings.System.VOLUME_CONTROL_SILENT, 0) != 0;
+        mSilentMode = mVolumeControlSilent
+            ? ((mAudioManager.getRingerMode() == AudioManager.RINGER_MODE_VIBRATE) || !mSilentMode)
+            : !mSilentMode;
+        if (mSilentMode) {
+            final boolean vibe = mVolumeControlSilent
+            ? (mAudioManager.getRingerMode() != AudioManager.RINGER_MODE_VIBRATE)
+            : (Settings.System.getInt(
+                getContext().getContentResolver(),
+                Settings.System.VIBRATE_IN_SILENT, 1) == 1);
 
-                mAudioManager.setRingerMode(vibe
-                    ? AudioManager.RINGER_MODE_VIBRATE
-                    : AudioManager.RINGER_MODE_SILENT);
-            } else {
-                mAudioManager.setRingerMode(AudioManager.RINGER_MODE_NORMAL);
-            }
+            mAudioManager.setRingerMode(vibe
+                ? AudioManager.RINGER_MODE_VIBRATE
+                : AudioManager.RINGER_MODE_SILENT);
+        } else {
+            mAudioManager.setRingerMode(AudioManager.RINGER_MODE_NORMAL);
+        }
+
+        String message = mSilentMode ?
+                getContext().getString(R.string.global_action_silent_mode_on_status) :
+                getContext().getString(R.string.global_action_silent_mode_off_status);
+
+        final int toastIcon = mSilentMode
+            ? R.drawable.ic_lock_ringer_off
+            : R.drawable.ic_lock_ringer_on;
+
+        final int toastColor = mSilentMode
+            ? getContext().getResources().getColor(R.color.keyguard_text_color_soundoff)
+            : getContext().getResources().getColor(R.color.keyguard_text_color_soundon);
+        toastMessage(mScreenLocked, message, toastColor, toastIcon);
     }
 
     @Override
@@ -1276,6 +1402,16 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
                 } else if ("FLASHLIGHT".equals(uri)) {
                     mContext.sendBroadcast(new Intent("net.cactii.flash2.TOGGLE_FLASHLIGHT"));
                     mCallback.pokeWakelock();
+                } else if ("NEXT".equals(uri)) {
+                    mForwardIcon.performClick();
+                } else if ("PREVIOUS".equals(uri)) {
+                    mRewindIcon.performClick();
+                } else if ("PLAYPAUSE".equals(uri)) {
+                    if (mPauseIcon.getVisibility() == View.VISIBLE) {
+                        mPauseIcon.performClick();
+                    } else {
+                        mPlayIcon.performClick();
+                    }
                 } else
                     try {
                         Intent i = Intent.parseUri(uri, 0);
@@ -1392,5 +1528,17 @@ class LockScreen extends LinearLayout implements KeyguardScreen, KeyguardUpdateM
                 && (Settings.System.getInt(mContext.getContentResolver(),
                         Settings.System.LOCKSCREEN_ALBUM_ART, 1) == 1))
             mAlbumArtToggle = true;
+    }
+
+    private void runActivity(String uri) {
+        try {
+            Intent i = Intent.parseUri(uri, 0);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+            mContext.startActivity(i);
+            mCallback.goToUnlockScreen();
+        } catch (URISyntaxException e) {
+        } catch (ActivityNotFoundException e) {
+        }
     }
 }

@@ -332,7 +332,7 @@ InputDevice* InputReader::createDevice(int32_t deviceId, const String8& name, ui
 
     if (keyboardSources != 0) {
         device->addMapper(new KeyboardInputMapper(device,
-                associatedDisplayId, keyboardSources, keyboardType));
+                associatedDisplayId, keyboardSources, keyboardType, mEventHub->getDeviceBluetooth(deviceId)));
     }
 
     // Trackball-like devices.
@@ -342,12 +342,15 @@ InputDevice* InputReader::createDevice(int32_t deviceId, const String8& name, ui
 
     // Touchscreen-like devices.
     if (classes & INPUT_DEVICE_CLASS_TOUCHSCREEN_MT) {
-#ifdef ZEUS_TOUCHPADS
+#ifdef TOUCHPAD_INPUT_DEVICE_ID
         /* According to the Sony Ericsson SDK, the jogdials should be interpreted
          * as an AINPUT_SOURCE_TOUCHPAD. According to getSources() above, a
          * touchpad is simply a device with a negative associated display id.
+         *
+         * This is also available to others who need input touchpads to be
+         * recognized as such and not as a regular touchscreen.
          */
-        if (deviceId == 0x10004) {
+        if (deviceId == TOUCHPAD_INPUT_DEVICE_ID) {
             device->addMapper(new MultiTouchInputMapper(device, -1));
         } else {
             device->addMapper(new MultiTouchInputMapper(device, associatedDisplayId));
@@ -870,9 +873,9 @@ int32_t SwitchInputMapper::getSwitchState(uint32_t sourceMask, int32_t switchCod
 // --- KeyboardInputMapper ---
 
 KeyboardInputMapper::KeyboardInputMapper(InputDevice* device, int32_t associatedDisplayId,
-        uint32_t sources, int32_t keyboardType) :
+        uint32_t sources, int32_t keyboardType, bool bluetooth) :
         InputMapper(device), mAssociatedDisplayId(associatedDisplayId), mSources(sources),
-        mKeyboardType(keyboardType) {
+        mKeyboardType(keyboardType), mBluetooth(bluetooth) {
     initializeLocked();
 }
 
@@ -962,7 +965,7 @@ void KeyboardInputMapper::processKey(nsecs_t when, bool down, int32_t keyCode,
         if (down) {
             // Rotate key codes according to orientation if needed.
             // Note: getDisplayInfo is non-reentrant so we can continue holding the lock.
-            if (mAssociatedDisplayId >= 0) {
+            if (!mBluetooth && mAssociatedDisplayId >= 0) {
                 int32_t orientation;
                 if (! getPolicy()->getDisplayInfo(mAssociatedDisplayId, NULL, NULL, & orientation)) {
                     return;
