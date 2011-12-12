@@ -380,7 +380,7 @@ void LayerBase::drawWithOpenGL(const Region& clip, const Texture& texture) const
     const uint32_t fbHeight = hw.getHeight();
     const State& s(drawingState());
 
-	LOGW("DrawWithOpenGL");
+//	LOGW("DrawWithOpenGL");
     
     // bind our texture
     TextureManager::activateTexture(texture, needsFiltering());
@@ -490,7 +490,7 @@ void LayerBase::drawWithOpenGL(const Region& clip, const Texture& texture) const
         cb = (NPOTAdjust ? hScale : 1.0f);
     }
 
-	LOGE("Drawing %d %f %f", NPOTAdjust, wScale, hScale);
+//	LOGE("Drawing %d %f %f", NPOTAdjust, wScale, hScale);
 
     /*
      * For the buffer transformation, we apply the rotation last.

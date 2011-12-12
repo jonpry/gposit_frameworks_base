@@ -225,7 +225,7 @@ void Layer::drawForSreenShot() const
 
 void Layer::onDraw(const Region& clip) const
 {
-    LOGW("Layer Draw");
+//    LOGW("Layer Draw");
     Texture tex(mBufferManager.getActiveTexture());
     if (tex.name == -1LU) {
         // the texture has not been created yet, this Layer has
@@ -872,7 +872,7 @@ status_t Layer::BufferManager::initEglImage(EGLDisplay dpy,
         const sp<GraphicBuffer>& buffer)
 {
 
-    LOGE("BufferManager: initEglImage");
+//    LOGE("BufferManager: initEglImage");
     status_t err = NO_INIT;
     ssize_t index = mActiveBuffer;
     if (index >= 0) {

@@ -148,11 +148,11 @@ status_t TextureManager::initEglImage(Texture* pImage,
 {
     status_t err = NO_ERROR;
 
-    LOGE("initEglImage");
+  //  LOGE("initEglImage");
 
     if (!pImage->dirty) return err;
 
-    LOGE("initEglImage dirty");
+ //   LOGE("initEglImage dirty");
 
     // free the previous image
     if (pImage->image != NULL) {
