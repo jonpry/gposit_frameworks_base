@@ -501,7 +501,10 @@ bool SurfaceFlinger::threadLoop()
     handlePageFlip();
 
     const DisplayHardware& hw(graphicPlane(0).displayHardware());
-    if (LIKELY(hw.canDraw() && !isFrozen())) {
+
+   // LOGW("Threadloop %d %d", hw.canDraw(), isFrozen());
+    //TODO: wtf is canDraw() false?
+    if (!isFrozen()){ //LIKELY(hw.canDraw() && !isFrozen())) {
 
 #ifdef USE_COMPOSITION_BYPASS
         if (handleBypassLayer()) {
@@ -549,6 +552,7 @@ bool SurfaceFlinger::handleBypassLayer()
 
 void SurfaceFlinger::postFramebuffer()
 {
+ //   LOGW("postFrameBuffer  %d", mInvalidRegion.isEmpty());
     if (!mInvalidRegion.isEmpty()) {
         const DisplayHardware& hw(graphicPlane(0).displayHardware());
         const nsecs_t now = systemTime();
@@ -884,6 +888,9 @@ void SurfaceFlinger::setBypassLayer(const sp<LayerBase>& layer)
 void SurfaceFlinger::handlePageFlip()
 {
     bool visibleRegions = mVisibleRegionsDirty;
+
+//    LOGW("handlePageFlip");
+
     LayerVector& currentLayers = const_cast<LayerVector&>(
             mDrawingState.layersSortedByZ);
     visibleRegions |= lockPageFlip(currentLayers);
