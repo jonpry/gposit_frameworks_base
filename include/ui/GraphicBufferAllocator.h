@@ -67,6 +67,8 @@ public:
 
     status_t free(buffer_handle_t handle);
 
+    status_t flush();
+
     void dump(String8& res) const;
     static void dumpToSystemLog();
 

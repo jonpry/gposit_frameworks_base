@@ -515,6 +515,8 @@ bool SurfaceFlinger::threadLoop()
         }
 #endif
 
+GraphicBufferAllocator::get().flush();
+
         // repaint the framebuffer (if needed)
         const int index = hw.getCurrentBufferIndex();
         GraphicLog& logger(GraphicLog::getInstance());

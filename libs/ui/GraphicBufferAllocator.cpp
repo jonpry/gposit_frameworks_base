@@ -93,6 +93,12 @@ void GraphicBufferAllocator::dumpToSystemLog()
     LOGD("%s", s.string());
 }
 
+status_t GraphicBufferAllocator::flush()
+{
+    mAllocDev->flush(mAllocDev);
+    return NO_ERROR;
+}
+
 status_t GraphicBufferAllocator::alloc(uint32_t w, uint32_t h, PixelFormat format,
         int usage, buffer_handle_t* handle, int32_t* stride, unsigned int *text)
 {
